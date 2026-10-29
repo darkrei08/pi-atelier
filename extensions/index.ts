@@ -123,6 +123,13 @@ interface LifecycleToken {
 const NOT_ACTIVE = "Pi Atelier is not active in this session";
 const RESIZE_SHORTCUT = "ctrl+shift+r";
 
+/** Pi matches modifiers in any order, so `shift+ctrl+r` and `ctrl+shift+r` are the same key. */
+const keyIdentity = (key: string): string => {
+	const parts = key.toLowerCase().split("+");
+	const last = parts.pop() ?? "";
+	return [...parts.sort(), last].join("+");
+};
+
 const userConfigPath = (): string => join(getAgentDir(), "pi-atelier.json");
 
 /** Run every cleanup step even when one throws; teardown must not mask the original failure. */
@@ -149,7 +156,7 @@ export default function atelierExtension(
 	const noopRender = (): void => undefined;
 	let activeSession: ActiveSession | undefined;
 	let enabled = true;
-	let customShortcutRegistered = false;
+	let customShortcutsRegistered = false;
 	let lifecycleToken: LifecycleToken = { id: 0 };
 	let initializingSessionManager: ExtensionContext["sessionManager"] | undefined;
 
@@ -635,21 +642,37 @@ export default function atelierExtension(
 		},
 	});
 
-	/** A configured shortcut is read from the first loaded config; Pi cannot unregister shortcuts. */
-	function registerCustomShortcut(ctx: ExtensionContext, shortcut: string): void {
-		if (customShortcutRegistered) return;
-		customShortcutRegistered = true;
-		if (shortcut.toLowerCase() === DEFAULT_CONFIG.shortcut) return;
+	/** Configured shortcuts are read from the first loaded config; Pi cannot unregister shortcuts. */
+	function registerCustomShortcuts(ctx: ExtensionContext, config: AtelierConfig): void {
+		if (customShortcutsRegistered) return;
+		customShortcutsRegistered = true;
+		const { shortcut, toggleShortcut } = config;
+		if (shortcut.toLowerCase() !== DEFAULT_CONFIG.shortcut) {
+			try {
+				pi.registerShortcut(shortcut as KeyId, {
+					description: "Open Pi Atelier",
+					handler: async (shortcutContext) => openMenu(shortcutContext),
+				});
+			} catch {
+				ctx.ui.notify(
+					`Cannot register Atelier shortcut "${shortcut}"; ${DEFAULT_CONFIG.shortcut} remains available`,
+					"warning",
+				);
+			}
+		}
+		if (!toggleShortcut) return;
+		const reservedKeys = [DEFAULT_CONFIG.shortcut, shortcut, RESIZE_SHORTCUT].map(keyIdentity);
+		if (reservedKeys.includes(keyIdentity(toggleShortcut))) {
+			ctx.ui.notify(`toggleShortcut "${toggleShortcut}" is already an Atelier shortcut`, "warning");
+			return;
+		}
 		try {
-			pi.registerShortcut(shortcut as KeyId, {
-				description: "Open Pi Atelier",
-				handler: async (shortcutContext) => openMenu(shortcutContext),
+			pi.registerShortcut(toggleShortcut as KeyId, {
+				description: "Toggle Pi Atelier sidebar",
+				handler: async (shortcutContext) => commands.get("sidebar")?.(shortcutContext, []),
 			});
 		} catch {
-			ctx.ui.notify(
-				`Cannot register Atelier shortcut "${shortcut}"; ${DEFAULT_CONFIG.shortcut} remains available`,
-				"warning",
-			);
+			ctx.ui.notify(`Cannot register Atelier toggleShortcut "${toggleShortcut}"`, "warning");
 		}
 	}
 
@@ -793,7 +816,7 @@ export default function atelierExtension(
 			activeSession = session;
 			published = session;
 			if (previousSession) disposeSession(previousSession, { clearFooter: true });
-			registerCustomShortcut(ctx, loaded.config.shortcut);
+			registerCustomShortcuts(ctx, loaded.config);
 			session.sidebar.setMode("manual");
 			if (enabled) {
 				syncFooter(session);
