@@ -34,6 +34,20 @@ describe("configuration validation", () => {
 		expect(invalid.warnings).toContain("toggleShortcut must be a string");
 	});
 
+	it("parses the user-only sidebar width", () => {
+		expect(DEFAULT_CONFIG.sidebarWidth).toBe(44);
+		expect(validateConfig({ sidebarWidth: 36 }).config.sidebarWidth).toBe(36);
+		const clamped = validateConfig({ sidebarWidth: 10 });
+		expect(clamped.config.sidebarWidth).toBe(28);
+		expect(clamped.warnings).toContain("sidebarWidth must be from 28 through 72; using 28");
+		const invalid = validateConfig({ sidebarWidth: 40.5 });
+		expect(invalid.config.sidebarWidth).toBe(44);
+		expect(invalid.warnings).toContain("sidebarWidth must be an integer");
+		expect(
+			resolveConfig({ user: { sidebarWidth: 36 }, project: { sidebarWidth: 60 } }).config.sidebarWidth,
+		).toBe(36);
+	});
+
 	it("keeps legacy Sidebar visibility compatible when no authoritative layout is present", () => {
 		const result = validateConfig({ showSidebarAgent: false, showSidebarTodos: false });
 		expect(result.config.sidebarPanelLayout.find((entry) => entry.id === "agent")?.visible).toBe(false);
@@ -262,6 +276,21 @@ describe("configuration files", () => {
 			density: "compact",
 			futureSetting: "keep",
 			completionNotifications: false,
+		});
+	});
+
+	it("keeps every field when patches are saved concurrently", async () => {
+		await writeJson(userPath, { futureSetting: "keep" });
+		await Promise.all([
+			saveUserConfigPatch(userPath, { sidebarWidth: 36 }),
+			saveUserConfigPatch(userPath, { completionNotifications: false }),
+			saveUserConfigPatch(userPath, { nerdFont: false }),
+		]);
+		expect(JSON.parse(await readFile(userPath, "utf8"))).toEqual({
+			futureSetting: "keep",
+			sidebarWidth: 36,
+			completionNotifications: false,
+			nerdFont: false,
 		});
 	});
 });
