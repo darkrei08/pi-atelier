@@ -86,6 +86,7 @@ Open `/atelier` or press **F6** to change display settings, control the sidebar,
 - The preferred width survives terminal resizes and mode changes.
 - A confirmed resize is saved as `sidebarWidth` and becomes the starting width for new sessions. Escape keeps the saved width.
 - Mode and visibility are session-scoped. The startup visibility preference is set in Settings.
+- The Sidebar requires at least 12 terminal rows; below 12 rows it hides as a short terminal, while width-based behavior is unchanged.
 - The TODO panel supports Pi `todo` results and the optional `@juicesharp/rpiv-todo` extension. Hidden TODO results keep their full output.
 
 ### Status rail presets

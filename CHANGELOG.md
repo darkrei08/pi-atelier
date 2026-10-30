@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Hide the Sidebar below 12 terminal rows and label short terminals separately from narrow terminals.
 - Preserve a red `× ERROR` activity state after provider assistant errors instead of resetting to ready.
 
 ## 0.17.0 — 2026-10-29

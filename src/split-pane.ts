@@ -92,7 +92,7 @@ const AUTO_MAIN_WIDTH = 80;
 const AUTO_REOPEN_MARGIN = 8;
 
 export type SidebarMode = "auto" | "manual";
-export type SidebarPresentation = "shown" | "auto-collapsed" | "too-narrow" | "off";
+export type SidebarPresentation = "shown" | "auto-collapsed" | "too-narrow" | "too-short" | "off";
 
 export interface SidebarStatus {
 	mode: SidebarMode;
@@ -444,11 +444,13 @@ export function createSplitPaneController(options: SplitPaneControllerOptions = 
 		}
 		const presentation: SidebarPresentation = !enabled
 			? "off"
-			: !validWidth || !validHeight || terminalWidth < MIN_MAIN_WIDTH + MIN_SIDEBAR_WIDTH
-				? "too-narrow"
-				: mode === "auto" && !autoExpanded
-					? "auto-collapsed"
-					: "shown";
+			: !validHeight
+				? "too-short"
+				: !validWidth || terminalWidth < MIN_MAIN_WIDTH + MIN_SIDEBAR_WIDTH
+					? "too-narrow"
+					: mode === "auto" && !autoExpanded
+						? "auto-collapsed"
+						: "shown";
 		const effectiveWidth =
 			presentation === "shown"
 				? clamp(sidebarWidth, MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, terminalWidth - MIN_MAIN_WIDTH))
