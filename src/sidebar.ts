@@ -161,11 +161,12 @@ function agentRows(
 	theme: ThemeLike,
 ): string[] {
 	const working = snapshot.activity === "working";
-	const label = working ? "Working" : "Ready";
+	const failed = snapshot.activity === "error";
+	const label = working ? "Working" : failed ? "Error" : "Ready";
 	const phrase = working && snapshot.workingLabel ? ` · ${sanitizeInline(snapshot.workingLabel)}` : "";
 	const knownModel = Boolean(snapshot.modelId || snapshot.provider);
 	return [
-		theme.bold(palette.paint(snapshot.activity, `${working ? "◆" : "●"} ${label}${phrase}`)),
+		theme.bold(palette.paint(snapshot.activity, `${working ? "◆" : failed ? "×" : "●"} ${label}${phrase}`)),
 		theme.bold(valueRow(snapshot.modelId, palette, "primary")),
 		valueRow(snapshot.provider, palette, "muted"),
 		labeledRow(
@@ -460,9 +461,10 @@ function toolActivityRow(
 	return truncateToWidth(row, contentWidth, "");
 }
 
-function runPhaseRole(activity: RunActivitySnapshot): PaletteRole {
+function runPhaseRole(activity: RunActivitySnapshot, failed = false): PaletteRole {
+	if (failed || activity.failedCount > 0) return "error";
 	if (activity.phase === "running") return "working";
-	return activity.failedCount > 0 ? "error" : "chartGreen";
+	return "chartGreen";
 }
 
 function runSummaryRow(
@@ -721,7 +723,7 @@ export function renderSidebarLines(
 			activityGroups(snapshot, panelWidth, palette, now, {
 				id: "activity",
 				title: "ACTIVITY",
-				role: runPhaseRole(snapshot.runActivity),
+				role: runPhaseRole(snapshot.runActivity, snapshot.activity === "error"),
 			}),
 		alerts: () => [
 			{
