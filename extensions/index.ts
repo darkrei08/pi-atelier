@@ -878,7 +878,6 @@ export default function atelierExtension(
 		const current = getActiveSession(ctx);
 		if (!current) return;
 		current.runActivity.startTurn(event.turnIndex);
-		current.runtime.setActivity("working");
 		current.completionNotifier.runStarted();
 		current.runtime.scheduleWorkspacePulseRefresh();
 	});
@@ -905,7 +904,6 @@ export default function atelierExtension(
 		const current = getActiveSession(ctx);
 		if (!current) return;
 		current.runActivity.finishTool(event);
-		if (event.isError) current.runtime.setActivity("error");
 		current.runtime.scheduleWorkspacePulseRefresh();
 	});
 	pi.on("tool_result", (event, ctx) => {
@@ -930,21 +928,23 @@ export default function atelierExtension(
 		const current = getActiveSession(ctx);
 		if (!current || !ctx.isIdle()) return;
 		current.runActivity.settle();
-		const failed = current.runActivity.getSnapshot().failedCount > 0;
-		if (failed) current.runtime.setActivity("error");
-		else if (current.runtime.getState().activity !== "error") current.runtime.setActivity("ready");
+		const lastAssistant = ctx.sessionManager
+			.getBranch()
+			.findLast((entry) => entry.type === "message" && entry.message.role === "assistant");
+		const providerFailed =
+			lastAssistant?.type === "message" &&
+			lastAssistant.message.role === "assistant" &&
+			lastAssistant.message.stopReason === "error";
+		current.runtime.setActivity(providerFailed ? "error" : "ready");
 		if (!enabled) return;
 		current.sidebar.requestRender();
 		if (current.runtime.getConfig().completionNotifications) {
 			current.completionNotifier.turnSettled(completionNotification(current));
 		}
 	});
-	pi.on("turn_end", async (event, ctx) => {
+	pi.on("turn_end", async (_event, ctx) => {
 		const current = getActiveSession(ctx);
 		if (!current) return;
-		const assistantFailed = event.message?.role === "assistant" && event.message.stopReason === "error";
-		const toolFailed = event.toolResults?.some((result) => result.isError) ?? false;
-		if (assistantFailed || toolFailed) current.runtime.setActivity("error");
 		current.runtime.refreshUsage();
 		await current.runtime.flushWorkspacePulseRefresh();
 	});

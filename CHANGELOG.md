@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Preserve a red `× ERROR` activity state after failed tools or provider turns instead of resetting to ready.
+- Preserve a red `× ERROR` activity state after provider assistant errors instead of resetting to ready.
 
 ## 0.17.0 — 2026-10-29
 
