@@ -13,7 +13,7 @@ describe("fullscreen Sidebar selection", () => {
 	it("removes the split child immediately when ctx.ui.custom closes its lifecycle overlay", async () => {
 		const terminal = {
 			columns: 120,
-			rows: 8,
+			rows: 36,
 			write: vi.fn(),
 			start: vi.fn(),
 			stop: vi.fn(),
@@ -83,7 +83,7 @@ describe("fullscreen Sidebar selection", () => {
 		const write = vi.fn();
 		const terminal = {
 			columns: 120,
-			rows: 8,
+			rows: 36,
 			write,
 			start: vi.fn((onInput: (data: string) => void) => {
 				deliverInput = onInput;

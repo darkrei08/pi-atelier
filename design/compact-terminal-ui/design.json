@@ -1,0 +1,27 @@
+{
+	"title": "Compact terminal UI",
+	"brief": "Three constrained-terminal directions for Pi Atelier when expanded mode has little width or height, with footer activity/context always readable and iOS/Herdr limitations explicit.",
+	"artboards": [
+		{
+			"file": "01-footer-priority.html",
+			"title": "Footer priority",
+			"tradeoff": "Preserves the expanded rail and makes activity/context the last information to yield; secondary telemetry becomes less visible.",
+			"width": 1280,
+			"height": 720
+		},
+		{
+			"file": "02-focus-stack.html",
+			"title": "Focus stack",
+			"tradeoff": "Maximizes transcript space by replacing the rail with a persistent activity/context stack; detailed panels require an explicit action.",
+			"width": 900,
+			"height": 570
+		},
+		{
+			"file": "03-rail-toggle.html",
+			"title": "Rail toggle",
+			"tradeoff": "Keeps a familiar rail at comfortable sizes and collapses it cleanly at short heights; users must use F6 or Panels to reopen it.",
+			"width": 1180,
+			"height": 680
+		}
+	]
+}

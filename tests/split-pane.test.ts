@@ -12,23 +12,23 @@ import {
 } from "../src/split-pane.js";
 import { stableTuiReference } from "./helpers/stable-tui-reference.js";
 
-function harness(columns = 120) {
+function harness(columns = 120, rows = 36) {
 	const baseRender = vi.fn((width: number) => [`base:${width}`]);
 	const requestRender = vi.fn();
 	const write = vi.fn();
 	const tui = {
 		render: baseRender,
 		requestRender,
-		terminal: { columns, rows: 36, write },
+		terminal: { columns, rows, write },
 	} as unknown as TUI;
 	return { tui, baseRender, requestRender, write };
 }
 
-function concreteHarness(columns = 120) {
+function concreteHarness(columns = 120, rows = 36) {
 	const baseRender = vi.fn((width: number) => [`base:${width}`]);
 	const requestRender = vi.fn();
 	const write = vi.fn();
-	const renderer = new PiTuiMainScreen({ columns, rows: 36, write } as never);
+	const renderer = new PiTuiMainScreen({ columns, rows, write } as never);
 	renderer.addChild({ render: baseRender, invalidate() {} });
 	renderer.requestRender = requestRender;
 	return { tui: renderer as unknown as TUI, baseRender, requestRender, write };
@@ -140,7 +140,7 @@ describe("temporary Resize mode", () => {
 		let mouseReporting = false;
 		const terminal = {
 			columns: 120,
-			rows: 8,
+			rows: 36,
 			write: vi.fn((data: string) => {
 				if (data.includes("\u001b[?1006h")) mouseReporting = true;
 				if (data.includes("\u001b[?1006l")) mouseReporting = false;
@@ -157,7 +157,7 @@ describe("temporary Resize mode", () => {
 		};
 		const renderer = new TuiAltScreen(terminal as never);
 		renderer.addChild({
-			render: () => Array.from({ length: 30 }, (_, index) => `line ${index}`),
+			render: () => Array.from({ length: 60 }, (_, index) => `line ${index}`),
 			invalidate() {},
 		});
 		renderer.start();
@@ -631,6 +631,16 @@ describe("sidebar overlay sizing", () => {
 		expect(h.tui.render(120)).toEqual([`base:${120 - DEFAULT_SIDEBAR_WIDTH}`]);
 
 		split.hide();
+		expect(h.tui.render(120)).toEqual(["base:120"]);
+	});
+
+	it("hides the sidebar when the terminal is too short for the expanded rail", () => {
+		const h = concreteHarness(120, 11);
+		const split = disposeAfterTest(createSplitPaneController());
+		split.attach(h.tui);
+		split.show();
+
+		expect(split.getStatus().presentation).toBe("too-narrow");
 		expect(h.tui.render(120)).toEqual(["base:120"]);
 	});
 

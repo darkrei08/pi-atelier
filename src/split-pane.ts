@@ -87,6 +87,7 @@ export const DEFAULT_SIDEBAR_WIDTH = 44;
 export const MIN_SIDEBAR_WIDTH = 28;
 export const MAX_SIDEBAR_WIDTH = 72;
 export const MIN_MAIN_WIDTH = 64;
+export const MIN_SIDEBAR_ROWS = 12;
 const AUTO_MAIN_WIDTH = 80;
 const AUTO_REOPEN_MARGIN = 8;
 
@@ -424,23 +425,26 @@ export function createSplitPaneController(options: SplitPaneControllerOptions = 
 		}
 	};
 
-	// All renderers and presentation consumers resolve the outer terminal width here.
+	// All renderers and presentation consumers resolve the outer terminal dimensions here.
 	// Invalid resize dimensions must not change the automatic expansion history.
 	const resolveLayout = (terminalWidth: number) => {
 		// Fullscreen layout normalizes invalid widths to 1; retain the raw terminal validity.
 		const reportedWidth = tui?.terminal.columns ?? terminalWidth;
+		const reportedRows = tui?.terminal.rows;
 		const validWidth =
 			Number.isFinite(terminalWidth) &&
 			terminalWidth > 0 &&
 			Number.isFinite(reportedWidth) &&
 			reportedWidth > 0;
+		const validHeight =
+			reportedRows === undefined || (Number.isFinite(reportedRows) && reportedRows >= MIN_SIDEBAR_ROWS);
 		if (enabled && mode === "auto" && validWidth) {
 			const threshold = AUTO_MAIN_WIDTH + sidebarWidth;
 			autoExpanded = terminalWidth >= threshold + (autoExpanded === false ? AUTO_REOPEN_MARGIN : 0);
 		}
 		const presentation: SidebarPresentation = !enabled
 			? "off"
-			: !validWidth || terminalWidth < MIN_MAIN_WIDTH + MIN_SIDEBAR_WIDTH
+			: !validWidth || !validHeight || terminalWidth < MIN_MAIN_WIDTH + MIN_SIDEBAR_WIDTH
 				? "too-narrow"
 				: mode === "auto" && !autoExpanded
 					? "auto-collapsed"
