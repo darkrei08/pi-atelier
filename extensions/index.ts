@@ -570,7 +570,8 @@ export default function atelierExtension(
 					};
 				},
 				getConfig: () => getCurrentSession()?.runtime.getConfig() ?? retiredConfig,
-				getRows: () => tui.terminal?.rows ?? 0,
+				getRows: () => tui.terminal?.rows ?? Number.POSITIVE_INFINITY,
+				getWidth: () => tui.terminal?.columns || undefined,
 				colorEnabled: isColorEnabled(),
 				requestRender: footerRequestRender,
 				onBranchChange: (callback) =>
@@ -626,7 +627,8 @@ export default function atelierExtension(
 						headerRendered = false;
 						return "";
 					}
-					const line = tui.terminal.rows >= 12 ? footer.renderHeader(width) : "";
+					const line =
+						tui.terminal.columns >= 76 && tui.terminal.rows >= 20 ? footer.renderHeader(width) : "";
 					headerRendered = Boolean(line);
 					return line;
 				};

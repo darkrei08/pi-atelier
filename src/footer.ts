@@ -92,15 +92,15 @@ const ITEM_META: Record<
 	activity: { zone: "left", group: "activity", dropRank: Number.POSITIVE_INFINITY, header: true },
 	model: { zone: "left", group: "model", dropRank: 60, header: true },
 	thinking: { zone: "left", group: "model", dropRank: 10, header: true },
-	workspace: { zone: "left", group: "workspace", dropRank: 50, header: true },
-	git: { zone: "left", group: "workspace", dropRank: 55, header: true },
+	workspace: { zone: "left", group: "workspace", dropRank: 65, header: true },
+	git: { zone: "left", group: "workspace", dropRank: 70, header: true },
 	input: { zone: "right", group: "usage", dropRank: 40, header: false },
 	output: { zone: "right", group: "usage", dropRank: 40, header: false },
 	cache: { zone: "right", group: "usage", dropRank: 50, header: false },
 	cost: { zone: "right", group: "usage", dropRank: 20, header: false },
 	performance: { zone: "right", group: "performance", dropRank: 45, header: false },
 	context: { zone: "right", group: "context", dropRank: Number.POSITIVE_INFINITY, header: true },
-	menu: { zone: "right", group: "menu", dropRank: 0, header: false },
+	menu: { zone: "right", group: "menu", dropRank: 80, header: false },
 };
 
 const RAIL_OWNED_SEGMENTS = new Set<SegmentId>(["model", "git"]);
@@ -423,6 +423,8 @@ export interface FooterRenderOptions {
 	surface?: FooterSurface;
 	/** Terminal rows for rail ownership; direct render calls default to an unbounded height. */
 	rows?: number;
+	/** Outer terminal width, when rendering a status line inside narrower editor chrome. */
+	terminalWidth?: number;
 }
 
 interface RenderedFooter {
@@ -441,19 +443,25 @@ function renderFooter(
 		workingDots = WORKING_DOT_FRAMES[0],
 		surface = "all",
 		rows = Number.POSITIVE_INFINITY,
+		terminalWidth = width,
 	}: FooterRenderOptions,
 ): RenderedFooter {
 	if (width <= 0) return { line: "", workingActivity: undefined };
 	const palette = createPalette(theme, colorEnabled);
 	const symbols = config.nerdFont ? FOOTER_ICONS : PLAIN_SYMBOLS;
 	const glyphs = surfaceGlyphs("footer", config.nerdFont);
-	const items = buildItems({ state, config, theme, palette, symbols, workingDots, glyphs }, width, rows);
+	const itemContext = { state, config, theme, palette, symbols, workingDots, glyphs };
+	const coreOnly = terminalWidth < 76 || rows < 20;
+	const items = coreOnly
+		? [SEGMENT_ITEMS.activity(itemContext)[0]!, SEGMENT_ITEMS.context(itemContext)[0]!]
+		: buildItems(itemContext, width, rows);
 	const workingActivity =
 		state.activity === "working" && config.density !== "compact"
 			? items.find((footerItem) => footerItem.id === "activity")?.full
 			: undefined;
 	let placed: PlacedItem[];
 	if (surface === "telemetry") {
+		if (coreOnly) return { line: "", workingActivity };
 		const { metrics } = state;
 		const available: Partial<Record<FooterItemId, boolean>> = {
 			input: metrics.usageAvailable,
@@ -498,6 +506,7 @@ export interface FooterComponentOptions {
 	getState(): FooterState;
 	getConfig(): AtelierConfig;
 	getRows(): number;
+	getWidth?(): number | undefined;
 	colorEnabled?: boolean;
 	requestRender(): void;
 	onBranchChange(callback: () => void): () => void;
@@ -538,6 +547,7 @@ export function createFooterComponent(options: FooterComponentOptions): AtelierF
 	};
 
 	const renderSurface = (width: number, surface: FooterSurface): string => {
+		const terminalWidth = options.getWidth?.();
 		const { line, workingActivity } = renderFooter(
 			options.getState(),
 			options.getConfig(),
@@ -548,6 +558,7 @@ export function createFooterComponent(options: FooterComponentOptions): AtelierF
 				workingDots: WORKING_DOT_FRAMES[frameIndex] ?? WORKING_DOT_FRAMES[0],
 				surface,
 				rows: options.getRows(),
+				...(terminalWidth !== undefined ? { terminalWidth } : {}),
 			},
 		);
 		// Animate only while the full working label is on screen; the telemetry row never shows it.

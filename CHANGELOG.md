@@ -9,9 +9,11 @@
 - Stop replacing `todo` results with `N/M done · see sidebar` while the TODO panel is visible. The agent now receives the full result, including task ids, `list` output, and refused updates ([#103](https://github.com/michaelmjhhhh/pi-atelier/issues/103)).
 - Stop overstating response TPS. The tokens in the first streamed chunk no longer count toward the rate, and a generation window shorter than 500ms shows no TPS, because chunks that arrive in one batch say nothing about decode speed ([#106](https://github.com/michaelmjhhhh/pi-atelier/issues/106)).
 - Internal: update development dependencies to resolve audit findings (vitest 4.1.12; overrides for undici, glob, minimatch, and zod under Pi 0.84.0). Pi 0.84.0 remains the minimum supported and tested version.
+- Raise text palette contrast to WCAG AA, keep status hierarchy state/location/telemetry/shortcut, and use a compact Activity + Context footer below the responsive profile thresholds.
+- Require 76 columns for the main pane, 104 total columns and 20 rows for a split sidebar, and omit editor framing at four rows or fewer; document the terminal size profiles.
 - Render top placement as horizontally packed sidebar-style cards with shared chrome, click-to-collapse hit areas, hidden-section counts, and a configurable `railTopHeight` cap (1–10 rows, default 6).
 - Show compact detail rows for expanded header sections and let mouse clicks on section titles toggle their session-scoped expansion.
-- Keep model and Git visible in the footer when the top rail is gated off by terminal size.
+- Keep model and Git visible in the footer when the top rail is gated off by terminal size, except in the core-only profile.
 - Render Atelier surfaces and completion notifications with ASCII glyphs when Plain text font mode is selected; retain existing Nerd Font output.
 - Assign duplicated panel data to its surface when the panel is placed at the top: the rail owns model and workspace identity, while the footer keeps Activity and Context. Right placement is unchanged.
 - Add a session-scoped top rail with configurable row limits and collapsible sections. In viewport/fullscreen mode it is a fixed bar above the transcript; scroll mode falls back to the rail above the editor. Retain the existing right sidebar by default.

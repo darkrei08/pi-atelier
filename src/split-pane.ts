@@ -97,7 +97,8 @@ export function parseSgrMouseEvent(data: string): SgrMouseEvent | undefined {
 export const DEFAULT_SIDEBAR_WIDTH = 44;
 export const MIN_SIDEBAR_WIDTH = 28;
 export const MAX_SIDEBAR_WIDTH = 72;
-export const MIN_MAIN_WIDTH = 64;
+export const MIN_MAIN_WIDTH = 76;
+export const MIN_SIDEBAR_ROWS = 20;
 const AUTO_MAIN_WIDTH = 80;
 const AUTO_REOPEN_MARGIN = 8;
 

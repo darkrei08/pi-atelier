@@ -48,6 +48,18 @@ Start Pi and open the control center with `/atelier` or **F6** (**Fn+F6** on key
 
 Plain text mode works with any monospace font, renders the interface using ASCII characters, and keeps colors, metrics, and the responsive layout. The default Nerd Font mode needs a Nerd Font, such as one from [nerdfonts.com](https://www.nerdfonts.com), selected in your terminal. Switch in **Settings → Font mode**.
 
+### Sizes and profiles
+
+| Surface | Threshold | Behavior |
+| --- | --- | --- |
+| Core footer | Below 76 columns or 20 rows | One row with Activity and Context only |
+| Sidebar split | At least 104 columns (76 main + 28 sidebar) and 20 rows | Keeps at least 76 columns for the main pane |
+| Top strip | At least 64 columns and 20 rows | Existing compact rail gates remain in effect |
+| Editor frame | More than 4 rows | Omits frame chrome at 4 rows or fewer |
+| Reflow target | 320 px, about 44 columns at 12 px monospace | Core footer stays on one row |
+
+Text roles meet a 4.5:1 contrast ratio against black and `#1e1e2e`; non-text indicators meet 3:1. Color is never the only signal. Touch target sizes belong to the terminal client (Heeler), not to the TUI cells.
+
 ## Features
 
 | | |
@@ -82,7 +94,7 @@ Open `/atelier` or press **F6** to change display settings, control the sidebar,
 
 | Mode | Behavior |
 | --- | --- |
-| **Manual** (default) | Resize with `Ctrl+Shift+R`, then the arrow keys or by dragging the divider. Enter or mouse release confirms; Escape cancels. Hides below 92 columns and returns at 92. |
+| **Manual** (default) | Resize with `Ctrl+Shift+R`, then the arrow keys or by dragging the divider. Enter or mouse release confirms; Escape cancels. Hides below 104 columns and returns at 104. |
 | **Auto** | Collapses when space is tight and reopens when there is room. At the default width it collapses below 124 columns and reopens at 132. Manual resizing is disabled. |
 
 - Showing or hiding is independent of the mode. A manually hidden sidebar stays hidden when the terminal grows.
@@ -177,7 +189,7 @@ Project settings override user settings, and session changes override both. Font
 
 `toggleShortcut` binds a key that shows or hides the Sidebar directly, like `/atelier sidebar`. It is empty (no binding) by default; set a key such as `"ctrl+shift+b"` and run `/reload`.
 
-`sidebarWidth` is the sidebar width in columns when a session starts, from 28 through 72. The sidebar still narrows when the terminal leaves less than 64 columns for the main pane.
+`sidebarWidth` is the sidebar width in columns when a session starts, from 28 through 72. The sidebar still narrows when the terminal leaves less than 76 columns for the main pane.
 
 Use **Settings → Display** to reorder or hide status rail segments and sidebar panels. Undo restores the latest Display or Sidebar edit, including a Display Revert. The legacy user settings `showSidebarAgent` and `showSidebarTodos` still apply when `sidebarPanelLayout` is absent. A layout you saved before Prefill existed gains that panel next to Context on the next start.
 

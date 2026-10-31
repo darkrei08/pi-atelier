@@ -113,7 +113,7 @@ export class AtelierEditor extends CustomEditor {
 		const safeWidth = Math.max(0, Math.trunc(width));
 		const renderStatusLine = this.renderStatusLine;
 		const editorLines =
-			safeWidth < EDITOR_FRAME_MIN_WIDTH
+			this.tui.terminal.rows <= 4 || safeWidth < EDITOR_FRAME_MIN_WIDTH
 				? super.render(safeWidth)
 				: frameEditorLines(
 						super.render(safeWidth - EDITOR_FRAME_CHROME),
