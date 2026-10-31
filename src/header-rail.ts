@@ -12,7 +12,7 @@ import { isColorEnabled, sanitizeInline } from "./text.js";
 import type { AtelierConfig, BuiltinSidebarPanelId } from "./types.js";
 import type { SidebarSnapshot } from "./sidebar.js";
 
-const SECTION_ROLES: Partial<Record<BuiltinSidebarPanelId, PaletteRole>> = {
+export const SECTION_ROLES: Partial<Record<BuiltinSidebarPanelId, PaletteRole>> = {
 	agent: "primary",
 	activity: "working",
 	alerts: "warning",
@@ -24,7 +24,7 @@ const SECTION_ROLES: Partial<Record<BuiltinSidebarPanelId, PaletteRole>> = {
 	tools: "chartPink",
 };
 // Activity and Context remain owned by the footer when the rail is on top.
-const FOOTER_OWNED_SECTIONS = new Set<BuiltinSidebarPanelId>(["activity", "context"]);
+export const FOOTER_OWNED_SECTIONS = new Set<BuiltinSidebarPanelId>(["activity", "context"]);
 
 export function renderHeaderRail(
 	snapshot: SidebarSnapshot,

@@ -1,6 +1,7 @@
 import { MouseRegion, type TuiMouseEvent, visibleWidth } from "@earendil-works/pi-tui";
 import type { Component } from "@earendil-works/pi-tui";
 import { renderHeaderRail } from "./header-rail.js";
+import { railCardAt, railStripLines } from "./rail-strip.js";
 import type { ThemeLike } from "./palette.js";
 import type { SectionExpansion } from "./rail-sections.js";
 import { sanitizeInline } from "./text.js";
@@ -19,6 +20,7 @@ export function railBarLines(
 	expansion: SectionExpansion,
 ): string[] {
 	if (width < RAIL_BAR_MIN_WIDTH || rows < RAIL_BAR_MIN_ROWS) return [];
+	if (config.panelPlacement === "top") return railStripLines(snapshot, config, theme, width, rows, expansion);
 	const maxRows = rows < 24 ? 1 : Math.min(4, config.headerRailRows);
 	return renderHeaderRail(snapshot, { ...config, headerRailRows: maxRows }, theme, width, expansion).filter(
 		Boolean,
@@ -34,6 +36,8 @@ export function hitTestRail(
 	column: number,
 ): BuiltinSidebarPanelId | undefined {
 	if (!Number.isInteger(row) || !Number.isInteger(column) || column < 0) return undefined;
+	const card = railCardAt(rows, row, column);
+	if (card) return card;
 	const line = rows[row];
 	if (!line) return undefined;
 	const text = sanitizeInline(line);

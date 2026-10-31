@@ -22,6 +22,15 @@ describe("configuration validation", () => {
 		}
 	});
 
+	it("validates top rail height", () => {
+		expect(DEFAULT_CONFIG.railTopHeight).toBe(6);
+		for (const height of [1, 6, 10])
+			expect(validateConfig({ railTopHeight: height }).config.railTopHeight).toBe(height);
+		const invalid = validateConfig({ railTopHeight: 11 });
+		expect(invalid.config.railTopHeight).toBe(6);
+		expect(invalid.warnings).toContain("railTopHeight must be an integer from 1 through 10");
+	});
+
 	it("validates header rail rows and builtin section expansion", () => {
 		expect(DEFAULT_CONFIG.headerRailRows).toBe(2);
 		for (const rows of [1, 2, 3, 4])

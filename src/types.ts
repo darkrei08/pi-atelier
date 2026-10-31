@@ -63,6 +63,7 @@ export interface DisplayLayerState {
 export type SessionDisplayOverride = Omit<DisplayPatch, "sidebarPanelLayout"> & {
 	sourcePanelPlacement?: PanelPlacement;
 	headerRailRows?: number;
+	railTopHeight?: number;
 	sectionExpansion?: Partial<Record<BuiltinSidebarPanelId, boolean>>;
 };
 
@@ -82,6 +83,7 @@ export type PanelPlacement = "right" | "top";
 export interface AtelierConfig extends DisplaySettings {
 	panelPlacement: PanelPlacement;
 	headerRailRows: number;
+	railTopHeight: number;
 	sectionExpansion: Partial<Record<BuiltinSidebarPanelId, boolean>>;
 	nerdFont: boolean;
 	shortcut: string;

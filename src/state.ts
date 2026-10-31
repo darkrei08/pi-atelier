@@ -36,6 +36,7 @@ const SESSION_DISPLAY_OVERRIDE_KEYS = [
 	"segmentLayout",
 	"sourcePanelPlacement",
 	"headerRailRows",
+	"railTopHeight",
 	"sectionExpansion",
 ] as const;
 
@@ -274,6 +275,7 @@ export class AtelierRuntime {
 			...resolved.display,
 			panelPlacement: config.panelPlacement,
 			headerRailRows: config.headerRailRows,
+			railTopHeight: config.railTopHeight,
 			sectionExpansion: config.sectionExpansion,
 		};
 		this.#invalidate();

@@ -281,21 +281,24 @@ describe("AtelierRuntime", () => {
 		expect(requestRender).toHaveBeenCalledTimes(2);
 	});
 
-	it("round-trips placement, rail rows, and section expansion in the Session layer", () => {
+	it("round-trips placement, rail heights, and section expansion in the Session layer", () => {
 		const { runtime } = createRuntime();
 		runtime.replaceSessionDisplayOverride({
 			sourcePanelPlacement: "top",
 			headerRailRows: 4,
+			railTopHeight: 8,
 			sectionExpansion: { agent: false, tools: true },
 		});
 		expect(runtime.getConfig()).toMatchObject({
 			panelPlacement: "top",
 			headerRailRows: 4,
+			railTopHeight: 8,
 			sectionExpansion: { agent: false, tools: true },
 		});
 		expect(runtime.getSessionDisplayOverride()).toMatchObject({
 			sourcePanelPlacement: "top",
 			headerRailRows: 4,
+			railTopHeight: 8,
 			sectionExpansion: { agent: false, tools: true },
 		});
 		runtime.clearSessionDisplayOverride();
@@ -303,6 +306,7 @@ describe("AtelierRuntime", () => {
 		expect(runtime.getConfig()).toMatchObject({
 			panelPlacement: "right",
 			headerRailRows: 2,
+			railTopHeight: 6,
 			sectionExpansion: {},
 		});
 	});

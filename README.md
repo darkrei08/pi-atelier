@@ -129,7 +129,7 @@ reporting needs Pi 0.99 or newer.
 
 ### Panel placement and collapsible sections
 
-The panel placement is **right** by default. Use `/atelier placement top` to hide the split sidebar and show its available sections in a fixed bar above the transcript in viewport/fullscreen mode; `/atelier placement right` restores the sidebar. In scroll mode, the top placement falls back to the rail above the editor. The top rail follows terminal width and `headerRailRows` sets its row cap from 1 through 4 (default 2). Click a section title to expand or collapse it; expanded sections show plain-text details within the configured row budget. When placed at the top, the rail owns model/thinking and workspace/branch while the footer retains Activity and Context; other footer content stays in place.
+The panel placement is **right** by default. Use `/atelier placement top` to hide the split sidebar and show its available sections as matching sidebar cards in a horizontal strip above the transcript in viewport/fullscreen mode; `/atelier placement right` restores the sidebar. In scroll mode, the top placement falls back to the rail above the editor. The strip appears at widths of at least 64 columns and heights of at least 20 rows. `railTopHeight` sets its height cap from 1 through 10 rows (default 6), further limited to terminal rows minus 16. Cards share the available width, clamped to 24–48 columns, and hidden cards are counted. Click anywhere within a card to expand or collapse it. Expanded cards show plain-text details, truncated to the available height. When placed at the top, the rail owns model/thinking and workspace/branch while the footer retains Activity and Context; other footer content stays in place.
 
 Sections start expanded. Use `/atelier section agent` (or another built-in section ID) to toggle one; the Settings menu also lists each section's current expanded state. Changes to placement and expansion are session-scoped.
 
@@ -161,6 +161,7 @@ Project settings override user settings, and session changes override both. Font
   "density": "comfortable",
   "sourcePanelPlacement": "right",
   "headerRailRows": 2,
+  "railTopHeight": 6,
   "contextWarning": 70,
   "contextDanger": 90,
   "showFooter": true,

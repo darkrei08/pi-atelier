@@ -45,6 +45,7 @@ export const DEFAULT_CONFIG: AtelierConfig = {
 	showSidebarToolNames: false,
 	panelPlacement: "right",
 	headerRailRows: 2,
+	railTopHeight: 6,
 	sectionExpansion: {},
 	showSidebarOnStartup: true,
 	sidebarWidth: DEFAULT_SIDEBAR_WIDTH,
@@ -349,6 +350,16 @@ function applyNonDisplay(
 		)
 			config.headerRailRows = input.headerRailRows;
 		else warnings.push("headerRailRows must be an integer from 1 through 4");
+	}
+	if ("railTopHeight" in input) {
+		if (
+			typeof input.railTopHeight === "number" &&
+			Number.isInteger(input.railTopHeight) &&
+			input.railTopHeight >= 1 &&
+			input.railTopHeight <= 10
+		)
+			config.railTopHeight = input.railTopHeight;
+		else warnings.push("railTopHeight must be an integer from 1 through 10");
 	}
 	if ("sectionExpansion" in input) {
 		if (!isRecord(input.sectionExpansion)) warnings.push("sectionExpansion must be an object");

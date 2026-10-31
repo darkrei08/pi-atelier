@@ -8,6 +8,7 @@ import { type PrefillSnapshot, formatPrefillRows } from "./prefill.js";
 import { hasCapturingOverlay } from "./image-compositor.js";
 import { formatTokens } from "./metrics.js";
 import { asciiGlyphText, surfaceGlyphs } from "./glyphs.js";
+import { renderPanelCard } from "./panel-card.js";
 import { type AtelierPalette, createPalette, type PaletteRole, type ThemeLike } from "./palette.js";
 import {
 	EMPTY_RUN_ACTIVITY,
@@ -123,19 +124,9 @@ function panelRows(
 	theme: ThemeLike,
 	role: PaletteRole,
 	jewel: Jewel,
+	nerdFont: boolean,
 ): string[] {
-	const safeWidth = Math.max(4, width);
-	const innerWidth = safeWidth - 4;
-	const crownPrefix = `╭─ ${jewel} `;
-	const crownFill = "─".repeat(Math.max(0, safeWidth - visibleWidth(crownPrefix) - visibleWidth(title) - 2));
-	const top = `${palette.paint(role, crownPrefix)}${theme.bold(palette.paint(role, title))} ${palette.paint(
-		role,
-		`${crownFill}╮`,
-	)}`;
-	// The frame carries a quiet shade of the crown's hue so each panel reads as one object.
-	const edge = palette.paintTint(role, "│");
-	const body = rows.map((row) => `${edge} ${fitToWidth(row, innerWidth)} ${edge}`);
-	return [top, ...body, palette.paintTint(role, `╰${"─".repeat(safeWidth - 2)}╯`), ""];
+	return [...renderPanelCard(title, jewel, role, rows, width, false, palette, theme, nerdFont), ""];
 }
 
 /** Align names and values consistently across all built-in panels. */
@@ -714,7 +705,9 @@ function renderGroups(
 			rows.push(...(groups[index]?.rows ?? []));
 			index += 1;
 		}
-		rendered.push(...panelRows(panel.title, rows, width, palette, theme, panel.role, panel.jewel ?? "✦"));
+		rendered.push(
+			...panelRows(panel.title, rows, width, palette, theme, panel.role, panel.jewel ?? "✦", true),
+		);
 	}
 	return rendered;
 }
