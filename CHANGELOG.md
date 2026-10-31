@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.18.0 — 2026-10-31
 
 - Show a temporary Sidebar **Prefill** panel while a local model is still reading a long prompt: a bar over the uncached prompt tokens, the token counts, the reading speed, and an estimate of how long until the first token. A long prefill used to look exactly like a hang. The panel is present only while prefilling and reserves nothing when it is absent. Configure with `prefillEnabled`, `prefillViews`, and the user-only `prefillProviders` allow-list, or toggle it in Control Center → Settings. Needs Pi 0.99 or newer to report progress; on an older Pi the panel never appears.
 - Prefill numbers count uncached tokens, because a cached prefix is not work the user is waiting for. The percent rides the bar, and the speed rides the `First token` row (`~4s · 3.4k tok/s`), taking its own row while no estimate is available. The speed is measured between progress chunks, and the first sample seeds its base with the cached prefix, so a warm prompt does not show a false speed.
