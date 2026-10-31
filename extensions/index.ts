@@ -112,6 +112,8 @@ interface ActiveSession {
 	askUserBlocked: boolean;
 	inputRequestSequence: number;
 	todos: NormalizedTodo[];
+	/** Whether the latest Turn ended in a provider error that the user did not abort. */
+	providerFailed: boolean;
 	requestFooterRender: () => void;
 	extensionStatuses: readonly string[];
 }
@@ -784,6 +786,7 @@ export default function atelierExtension(
 			askUserBlocked: false,
 			inputRequestSequence: 0,
 			todos: enabled ? reconstructTodos(ctx) : [],
+			providerFailed: false,
 			requestFooterRender: noopRender,
 			extensionStatuses: [],
 		};
@@ -872,6 +875,7 @@ export default function atelierExtension(
 		if (!current) return;
 		current.runActivity.startRun();
 		current.completionNotifier.runStarted();
+		current.providerFailed = false;
 		current.runtime.setActivity("working");
 	});
 	pi.on("turn_start", (event, ctx) => {
@@ -928,23 +932,19 @@ export default function atelierExtension(
 		const current = getActiveSession(ctx);
 		if (!current || !ctx.isIdle()) return;
 		current.runActivity.settle();
-		const lastAssistant = ctx.sessionManager
-			.getBranch()
-			.findLast((entry) => entry.type === "message" && entry.message.role === "assistant");
-		const providerFailed =
-			lastAssistant?.type === "message" &&
-			lastAssistant.message.role === "assistant" &&
-			lastAssistant.message.stopReason === "error";
-		current.runtime.setActivity(providerFailed ? "error" : "ready");
+		current.runtime.setActivity(current.providerFailed ? "error" : "ready");
 		if (!enabled) return;
 		current.sidebar.requestRender();
 		if (current.runtime.getConfig().completionNotifications) {
 			current.completionNotifier.turnSettled(completionNotification(current));
 		}
 	});
-	pi.on("turn_end", async (_event, ctx) => {
+	pi.on("turn_end", async (event, ctx) => {
 		const current = getActiveSession(ctx);
 		if (!current) return;
+		// Pi can record a user abort as `stopReason: "error"`, so the run signal decides.
+		current.providerFailed =
+			event.message.role === "assistant" && event.message.stopReason === "error" && !ctx.signal?.aborted;
 		current.runtime.refreshUsage();
 		await current.runtime.flushWorkspacePulseRefresh();
 	});
