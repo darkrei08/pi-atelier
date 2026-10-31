@@ -129,7 +129,7 @@ reporting needs Pi 0.99 or newer.
 
 ### Panel placement and collapsible sections
 
-The panel placement is **right** by default. Use `/atelier placement top` to hide the split sidebar and show its available sections in rows above the editor; `/atelier placement right` restores the sidebar. The top rail follows terminal width and `headerRailRows` sets its row cap from 1 through 4 (default 2). It uses the existing editor header surface and has no focus traversal or mouse interaction. When placed at the top, the rail owns model/thinking and workspace/branch while the footer retains Activity and Context; other footer content stays in place.
+The panel placement is **right** by default. Use `/atelier placement top` to hide the split sidebar and show its available sections in a fixed bar above the transcript in viewport/fullscreen mode; `/atelier placement right` restores the sidebar. In scroll mode, the top placement falls back to the rail above the editor. The top rail follows terminal width and `headerRailRows` sets its row cap from 1 through 4 (default 2). It has no focus traversal or mouse interaction. When placed at the top, the rail owns model/thinking and workspace/branch while the footer retains Activity and Context; other footer content stays in place.
 
 Sections start expanded. Use `/atelier section agent` (or another built-in section ID) to toggle one; the Settings menu also lists each section's current expanded state. Changes to placement and expansion are session-scoped.
 

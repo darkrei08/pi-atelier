@@ -1,6 +1,6 @@
 import { disposeAfterTest } from "./helpers/cleanup.js";
 import type { TUI } from "@earendil-works/pi-tui";
-import { TuiMainScreen as PiTuiMainScreen, TuiAltScreen } from "@earendil-works/pi-tui";
+import { HStack, TuiMainScreen as PiTuiMainScreen, TuiAltScreen, VStack } from "@earendil-works/pi-tui";
 import { describe, expect, it, vi } from "vitest";
 import {
 	createSplitPaneController,
@@ -11,6 +11,7 @@ import {
 	parseSgrMouseEvent,
 } from "../src/split-pane.js";
 import { stableTuiReference } from "./helpers/stable-tui-reference.js";
+import { createRailBar } from "../src/rail-bar.js";
 
 function harness(columns = 120) {
 	const baseRender = vi.fn((width: number) => [`base:${width}`]);
@@ -478,6 +479,37 @@ describe("Pi 0.84 split layout", () => {
 		split.hide();
 		renderer.render(120);
 		expect(widths.at(-1)).toBe(120);
+	});
+
+	it("places a top bar above the original root and restores right placement", () => {
+		const renderer = new TuiAltScreen({ columns: 120, rows: 36, write: vi.fn() } as never);
+		const originalRoot = { render: () => ["transcript"], invalidate() {} };
+		renderer.requestRender = vi.fn();
+		renderer.setLayoutRoot(originalRoot);
+		const bar = createRailBar((width, rows) => (width >= 64 && rows >= 20 ? ["fixed rail"] : []));
+		const split = disposeAfterTest(createSplitPaneController({ topBar: bar }));
+		split.attach(stableTuiReference(() => renderer));
+
+		const topRoot = (renderer as unknown as { layoutRoot: unknown }).layoutRoot;
+		expect(topRoot).toBeInstanceOf(VStack);
+		expect((topRoot as VStack).render(120)).toEqual(["fixed rail", "transcript"]);
+		Object.assign(renderer.terminal, { rows: 2 });
+		(topRoot as VStack).render(120);
+		expect((renderer as unknown as { layoutRoot: unknown }).layoutRoot).toBe(originalRoot);
+		Object.assign(renderer.terminal, { rows: 36 });
+		split.setTopBar(bar);
+		expect((renderer as unknown as { layoutRoot: unknown }).layoutRoot).toBeInstanceOf(VStack);
+		Object.assign(renderer.terminal, { columns: 40 });
+		(renderer as unknown as { layoutRoot: VStack }).layoutRoot.render(40);
+		expect((renderer as unknown as { layoutRoot: unknown }).layoutRoot).toBe(originalRoot);
+		Object.assign(renderer.terminal, { columns: 120 });
+		split.requestRender();
+		expect((renderer as unknown as { layoutRoot: unknown }).layoutRoot).toBeInstanceOf(VStack);
+
+		split.setTopBar(undefined);
+		expect((renderer as unknown as { layoutRoot: unknown }).layoutRoot).toBe(originalRoot);
+		split.show();
+		expect((renderer as unknown as { layoutRoot: unknown }).layoutRoot).toBeInstanceOf(HStack);
 	});
 
 	it("restores the original fullscreen layout root on disposal", () => {

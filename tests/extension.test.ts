@@ -94,6 +94,13 @@ describe("extension registration", () => {
 		await start(h);
 		await command(h, "placement top");
 		expect(h.ctx.ui.notify).toHaveBeenLastCalledWith("Panel placement: top", "info");
+		const { editor, footer } = mountComposer(h);
+		try {
+			expect(editor.renderStatusLine?.(60)).not.toContain("AGENT");
+			expect(editor.render(80)[0]).toContain("AGENT");
+		} finally {
+			footer.dispose();
+		}
 		await command(h, "section agent");
 		expect(h.ctx.ui.notify).toHaveBeenLastCalledWith("AGENT collapsed", "info");
 		await command(h, "section agent");

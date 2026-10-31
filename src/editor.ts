@@ -103,25 +103,30 @@ export function frameEditorLines(
 export class AtelierEditor extends CustomEditor {
 	/** Optional ANSI status content for the top frame; receives its available column width. */
 	renderStatusLine: ((width: number) => string) | undefined;
+	/** Optional separate rail above the editor frame, used by scroll-mode fallback. */
+	renderAbove: ((width: number) => string[]) | undefined;
 	/** Whether the most recent render included the status line in its top frame. */
 	statusLineVisible = false;
 
 	override render(width: number): string[] {
 		this.statusLineVisible = false;
 		const safeWidth = Math.max(0, Math.trunc(width));
-		if (safeWidth < EDITOR_FRAME_MIN_WIDTH) return super.render(safeWidth);
 		const renderStatusLine = this.renderStatusLine;
-		return frameEditorLines(
-			super.render(safeWidth - EDITOR_FRAME_CHROME),
-			safeWidth,
-			this.borderColor,
-			renderStatusLine
-				? (availableWidth) => {
-						const status = renderStatusLine(availableWidth);
-						this.statusLineVisible = fitsStatusLine(status, availableWidth);
-						return status;
-					}
-				: undefined,
-		);
+		const editorLines =
+			safeWidth < EDITOR_FRAME_MIN_WIDTH
+				? super.render(safeWidth)
+				: frameEditorLines(
+						super.render(safeWidth - EDITOR_FRAME_CHROME),
+						safeWidth,
+						this.borderColor,
+						renderStatusLine
+							? (availableWidth) => {
+									const status = renderStatusLine(availableWidth);
+									this.statusLineVisible = fitsStatusLine(status, availableWidth);
+									return status;
+								}
+							: undefined,
+					);
+		return [...(this.renderAbove?.(safeWidth) ?? []), ...editorLines];
 	}
 }

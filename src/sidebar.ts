@@ -18,6 +18,7 @@ import {
 } from "./run-activity.js";
 import { isBuiltinSidebarPanelId, type SidebarPanelData } from "./sidebar-panels.js";
 import { createSplitPaneController, type SidebarMode, type SidebarStatus } from "./split-pane.js";
+import type { RailBarComponent } from "./rail-bar.js";
 import { createInertAtelierState } from "./state.js";
 import { type SubagentCostChartGraphics, subagentCostChart } from "./subagent-cost-chart.js";
 import { errorMessage, fitToWidth, PLACEHOLDER, sanitizeInline } from "./text.js";
@@ -1022,6 +1023,7 @@ export interface SidebarController {
 	beginResize(): boolean;
 	isResizing(): boolean;
 	requestRender(): void;
+	setTopBar(component: RailBarComponent | undefined): void;
 	dispose(): void;
 }
 
@@ -1265,6 +1267,7 @@ export function createSidebarController(options: SidebarControllerOptions): Side
 		},
 		beginResize: split.beginResize,
 		isResizing: split.isResizing,
+		setTopBar: split.setTopBar,
 		requestRender() {
 			// Still refresh the overlay if adapter reconciliation fails.
 			if (!safely(split.requestRender)) safely(() => requestOverlayRender?.());

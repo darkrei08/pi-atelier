@@ -7,7 +7,7 @@ import {
 	getAgentDir,
 	SettingsManager,
 } from "@earendil-works/pi-coding-agent";
-import type { KeyId } from "@earendil-works/pi-tui";
+import { isViewportTUI, type KeyId } from "@earendil-works/pi-tui";
 import {
 	type CompletionNotification,
 	type CompletionNotifier,
@@ -15,7 +15,7 @@ import {
 	type SpawnNotificationProcess,
 } from "../src/completion-notifier.js";
 import { DEFAULT_CONFIG, loadConfig, saveUserConfigPatch } from "../src/config.js";
-import { renderHeaderRail } from "../src/header-rail.js";
+import { createRailBar, railBarLines, type RailBarComponent } from "../src/rail-bar.js";
 import { AtelierEditor } from "../src/editor.js";
 import { type AtelierFooterComponent, createFooterComponent } from "../src/footer.js";
 import { createImageCompositorBinding } from "../src/image-compositor.js";
@@ -158,6 +158,7 @@ interface ActiveSession {
 	providerFailed: boolean;
 	requestFooterRender: () => void;
 	extensionStatuses: readonly string[];
+	railBar: RailBarComponent | undefined;
 }
 
 interface LifecycleToken {
@@ -530,7 +531,25 @@ export default function atelierExtension(
 				if (getCurrentSession()) tui.requestRender();
 			};
 			const current = getCurrentSession();
-			if (current) current.requestFooterRender = footerRequestRender;
+			if (current) {
+				current.requestFooterRender = footerRequestRender;
+				current.railBar = createRailBar((width, rows) => {
+					const session = getCurrentSession();
+					if (!session) return [];
+					const config = session.runtime.getConfig();
+					return railBarLines(
+						getSidebarSnapshot(session),
+						config,
+						theme,
+						width,
+						rows,
+						config.sectionExpansion,
+					);
+				});
+				current.sidebar.setTopBar(
+					current.runtime.getConfig().panelPlacement === "top" ? current.railBar : undefined,
+				);
+			}
 			const component = createFooterComponent({
 				getState: (): FooterState => {
 					// A footer outliving its `setFooter(undefined)` reports detached inert state.
@@ -587,6 +606,14 @@ export default function atelierExtension(
 		try {
 			ctx.ui.setEditorComponent((tui, theme, keybindings) => {
 				const next = new AtelierEditor(tui, theme, keybindings);
+				next.renderAbove = (width) => {
+					const current = getCurrentSession();
+					if (!current || !headerTheme || isViewportTUI(tui)) return [];
+					const config = current.runtime.getConfig();
+					if (config.panelPlacement !== "top" || !current.railBar) return [];
+					current.railBar.setRows(tui.terminal.rows);
+					return current.railBar.render(width);
+				};
 				next.renderStatusLine = (width) => {
 					// Fullscreen Pi crops the top of a tall draft after editor rendering.
 					// Keep essential state in the bottom footer on short terminals.
@@ -594,17 +621,6 @@ export default function atelierExtension(
 					if (!current || !footer || !headerTheme) {
 						headerRendered = false;
 						return "";
-					}
-					const config = current.runtime.getConfig();
-					if (config.panelPlacement === "top") {
-						headerRendered = false;
-						return renderHeaderRail(
-							getSidebarSnapshot(current),
-							config,
-							headerTheme,
-							width,
-							config.sectionExpansion,
-						).join("\n");
 					}
 					const line = tui.terminal.rows >= 12 ? footer.renderHeader(width) : "";
 					headerRendered = Boolean(line);
@@ -634,6 +650,7 @@ export default function atelierExtension(
 			...current.runtime.getSessionDisplayOverride(),
 			sourcePanelPlacement: placement,
 		});
+		current.sidebar.setTopBar(placement === "top" ? current.railBar : undefined);
 		if (enabled && placement === "right") current.sidebar.show();
 		else current.sidebar.hide();
 		requestAllRenders(current);
@@ -919,6 +936,7 @@ export default function atelierExtension(
 			providerFailed: false,
 			requestFooterRender: noopRender,
 			extensionStatuses: [],
+			railBar: undefined,
 		};
 	}
 
