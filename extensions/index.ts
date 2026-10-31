@@ -944,7 +944,7 @@ export default function atelierExtension(
 		if (!current) return;
 		// Pi can record a user abort as `stopReason: "error"`, so the run signal decides.
 		current.providerFailed =
-			event.message.role === "assistant" && event.message.stopReason === "error" && !ctx.signal?.aborted;
+			event.message?.role === "assistant" && event.message.stopReason === "error" && !ctx.signal?.aborted;
 		current.runtime.refreshUsage();
 		await current.runtime.flushWorkspacePulseRefresh();
 	});
