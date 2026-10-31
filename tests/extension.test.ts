@@ -400,8 +400,8 @@ describe("extension registration", () => {
 				const rendered = workspace?.render(120).join("\n") ?? "";
 				expect(rendered).toContain("vendor:missing");
 
-				// Two display rows, nine segments, and three actions precede configured panels.
-				for (let index = 0; index < 14 + 10; index += 1) workspace?.handleInput("\u001b[B");
+				// Two display rows, ten segments, and three actions precede configured panels.
+				for (let index = 0; index < 14 + 12; index += 1) workspace?.handleInput("\u001b[B");
 				const focusedRendered = workspace?.render(120).join("\n") ?? "";
 				expect(focusedRendered).toContain("Queue title");
 				expect(focusedRendered).toContain("unavailable");
@@ -424,6 +424,7 @@ describe("extension registration", () => {
 					"activity",
 					"alerts",
 					"todos",
+					"workflows",
 					"context",
 					"workspace",
 					"usage",

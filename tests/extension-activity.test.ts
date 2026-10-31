@@ -282,7 +282,7 @@ describe("extension activity", () => {
 		const settledText = renderOverlayText(h, 0, 44);
 		expect(settledText).toMatch(/Last run\s+3s/);
 		expect(settledText).not.toContain("settled 3s");
-		expect(settledText).toContain("Ready");
+		expect(settledText).toContain("✓ Complete");
 		expect(settledText).toContain("read");
 		expect(settledText).toContain("src/run-activity.ts");
 		expect(settledText).toMatch(/✓ read\s+src\/run-activity\.ts\s+1s/);

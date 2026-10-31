@@ -19,6 +19,10 @@ export type PaletteRole =
 	| "chartGreen"
 	| "chartGold";
 
+/** Activity states drawn in their own hue; a finished turn rests in the success color. */
+export const activityRole = (activity: "ready" | "working" | "completed"): PaletteRole =>
+	activity === "completed" ? "success" : activity;
+
 export interface PaletteTheme {
 	readonly name?: string;
 	fg(color: string, text: string): string;

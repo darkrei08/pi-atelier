@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Show completed activity with a ✓ marker, add an optional session ID segment, and display active PiWorkflow runs in the WORKFLOWS sidebar panel.
+
 ## 0.17.0 — 2026-10-29
 
 - Add a global **Atelier footer** setting. Turn it off in **Settings** or set `"showFooter": false` to keep Pi's or another extension's footer and composer while still using the Sidebar ([#96](https://github.com/michaelmjhhhh/pi-atelier/issues/96)).

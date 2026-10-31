@@ -13,6 +13,7 @@ import {
 } from "../src/sidebar.js";
 import { DEFAULT_SIDEBAR_WIDTH } from "../src/split-pane.js";
 import { type AtelierState } from "../src/types.js";
+import type { WorkflowRunStatus } from "../src/workflow-runs.js";
 
 const stripAnsi = (text: string) => text.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "");
 
@@ -147,6 +148,44 @@ function renderRows(
 const flushOverlay = settleMicrotasks;
 
 describe("sidebar snapshot and layout", () => {
+	it("renders active workflow rows with phases and running agent counts, but hides the empty panel", () => {
+		const config = {
+			...DEFAULT_CONFIG,
+			sidebarPanelLayout: DEFAULT_CONFIG.sidebarPanelLayout.map((entry) => ({
+				...entry,
+				visible: entry.id === "workflows",
+			})),
+		};
+		const workflows: WorkflowRunStatus[] = [
+			{
+				runId: "run-1",
+				name: "Deploy",
+				state: "running",
+				phase: "build",
+				agents: new Map([
+					["a", "running"],
+					["b", "waiting_for_child"],
+					["c", "completed"],
+				]),
+			},
+			{
+				runId: "run-2",
+				name: "Release",
+				state: "running",
+				phase: "publish",
+				agents: new Map([["d", "retrying"]]),
+			},
+		];
+		const activeRows = renderRows({ ...snapshot(), workflows }, { config });
+		const emptyRows = renderRows(snapshot(), { config });
+
+		expect(activeRows).toContain("WORKFLOWS");
+		expect(activeRows).toContain("◐ Deploy · build · 2 agents");
+		expect(activeRows).toContain("◐ Release · publish · 1 agent");
+		expect(activeRows.filter((row) => row.startsWith("◐ "))).toHaveLength(2);
+		expect(emptyRows).not.toContain("WORKFLOWS");
+	});
+
 	it("composes visible panels in persisted order and keeps unavailable entries out of rendering", () => {
 		const ordered = {
 			...DEFAULT_CONFIG,
