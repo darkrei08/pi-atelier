@@ -9,6 +9,7 @@
 - Stop replacing `todo` results with `N/M done · see sidebar` while the TODO panel is visible. The agent now receives the full result, including task ids, `list` output, and refused updates ([#103](https://github.com/michaelmjhhhh/pi-atelier/issues/103)).
 - Stop overstating response TPS. The tokens in the first streamed chunk no longer count toward the rate, and a generation window shorter than 500ms shows no TPS, because chunks that arrive in one batch say nothing about decode speed ([#106](https://github.com/michaelmjhhhh/pi-atelier/issues/106)).
 - Internal: update development dependencies to resolve audit findings (vitest 4.1.12; overrides for undici, glob, minimatch, and zod under Pi 0.84.0). Pi 0.84.0 remains the minimum supported and tested version.
+- Render Atelier surfaces and completion notifications with ASCII glyphs when Plain text font mode is selected; retain existing Nerd Font output.
 - Assign duplicated panel data to its surface when the panel is placed at the top: the rail owns model and workspace identity, while the footer keeps Activity and Context. Right placement is unchanged.
 - Add a session-scoped top header rail placement with configurable row limits and collapsible built-in sections; retain the existing right sidebar by default.
 

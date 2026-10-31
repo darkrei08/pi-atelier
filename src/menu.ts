@@ -13,6 +13,7 @@ import {
 	truncateToWidth,
 } from "@earendil-works/pi-tui";
 import { saveUserConfigPatch } from "./config.js";
+import { surfaceGlyphs } from "./glyphs.js";
 import { isSectionExpanded, toggleSection } from "./rail-sections.js";
 import { BUILTIN_SIDEBAR_PANEL_IDS, isBuiltinSidebarPanelId } from "./sidebar-panels.js";
 import { isLifetimeActive, openLifecycleOverlay, type OverlayLifetime } from "./overlay-lifecycle.js";
@@ -32,11 +33,12 @@ import type { AtelierConfig } from "./types.js";
 type SaveConfigPatch = typeof saveUserConfigPatch;
 type ThinkingLevel = Parameters<ExtensionAPI["setThinkingLevel"]>[0];
 
-export function sidebarStatusLabel(status: SidebarStatus): string {
+export function sidebarStatusLabel(status: SidebarStatus, nerdFont = true): string {
 	const label = status.mode === "auto" ? "Auto" : "Manual";
-	if (!status.enabled) return `${label} · hidden`;
+	const separator = nerdFont ? "·" : "-";
+	if (!status.enabled) return `${label} ${separator} hidden`;
 	return status.presentation === "auto-collapsed" || status.presentation === "too-narrow"
-		? `${label} · hidden: narrow terminal`
+		? `${label} ${separator} hidden: narrow terminal`
 		: label;
 }
 
@@ -61,14 +63,22 @@ export interface SidebarControls {
 	getSidebarPanelSettings(): readonly SidebarPanelSetting[];
 }
 
-export function renderMenuFrame(theme: ThemeLike, lines: string[], width: number): string[] {
+export function renderMenuFrame(theme: ThemeLike, lines: string[], width: number, nerdFont = true): string[] {
+	const glyphs = surfaceGlyphs("menu", nerdFont);
 	const border = (text: string) => theme.bold(theme.fg("borderAccent", text));
-	if (width <= 1) return [truncateToWidth(border("━"), Math.max(0, width), "")];
+	if (width <= 1)
+		return [truncateToWidth(border(nerdFont ? "━" : glyphs.horizontal), Math.max(0, width), "")];
 	const innerWidth = width - 2;
+	const horizontal = (nerdFont ? "━" : glyphs.horizontal).repeat(innerWidth);
+	const left = nerdFont ? "┏" : glyphs.topLeft;
+	const right = nerdFont ? "┓" : glyphs.topRight;
+	const edge = nerdFont ? "┃" : glyphs.vertical;
+	const bottomLeft = nerdFont ? "┗" : glyphs.bottomLeft;
+	const bottomRight = nerdFont ? "┛" : glyphs.bottomRight;
 	return [
-		border(`┏${"━".repeat(innerWidth)}┓`),
-		...lines.map((line) => `${border("┃")}${fitToWidth(line, innerWidth)}${border("┃")}`),
-		border(`┗${"━".repeat(innerWidth)}┛`),
+		border(`${left}${horizontal}${right}`),
+		...lines.map((line) => `${border(edge)}${fitToWidth(line, innerWidth)}${border(edge)}`),
+		border(`${bottomLeft}${horizontal}${bottomRight}`),
 	];
 }
 
@@ -235,7 +245,8 @@ async function showSelection(
 	ctx: ExtensionContext,
 	title: string,
 	items: SelectItem[],
-	lifetime?: OverlayLifetime,
+	lifetime: OverlayLifetime | undefined,
+	nerdFont: boolean,
 ): Promise<string | undefined> {
 	return openLifecycleOverlay<string>(
 		ctx,
@@ -252,9 +263,18 @@ async function showSelection(
 			list.onSelect = (item) => finish(item.value);
 			list.onCancel = () => finish();
 			container.addChild(list);
-			container.addChild(new Text(theme.fg("dim", "↑↓ navigate • enter select • esc back"), 1, 0));
+			container.addChild(
+				new Text(
+					theme.fg(
+						"dim",
+						nerdFont ? "↑↓ navigate • enter select • esc back" : "up/down navigate - enter select - esc back",
+					),
+					1,
+					0,
+				),
+			);
 			return {
-				render: (width) => renderMenuFrame(theme, container.render(Math.max(1, width - 2)), width),
+				render: (width) => renderMenuFrame(theme, container.render(Math.max(1, width - 2)), width, nerdFont),
 				invalidate: () => container.invalidate(),
 				handleInput: (data) => {
 					list.handleInput(data);
@@ -411,7 +431,7 @@ export async function openAtelierControlCenter(
 	// Each menu returns undefined once the session retires, which closes every level.
 	const choose = async (title: string, items: SelectItem[]): Promise<string | undefined> => {
 		if (!isActive()) return undefined;
-		const choice = await showSelection(ctx, title, items, lifetime);
+		const choice = await showSelection(ctx, title, items, lifetime, runtime.getConfig().nerdFont);
 		return isActive() ? choice : undefined;
 	};
 
@@ -578,7 +598,7 @@ export async function openAtelierControlCenter(
 			const choice = await choose("Controls", [
 				{
 					value: "sidebar",
-					label: `Sidebar: ${sidebarStatusLabel(sidebar.getStatus())}`,
+					label: `Sidebar: ${sidebarStatusLabel(sidebar.getStatus(), runtime.getConfig().nerdFont)}`,
 					description: "Choose Auto or Manual; show or hide independently",
 				},
 				{
@@ -610,12 +630,12 @@ export async function openAtelierControlCenter(
 	};
 
 	for (;;) {
-		const category = await choose("◆ Atelier Control Center", [
+		const category = await choose(`${runtime.getConfig().nerdFont ? "◆" : "*"} Atelier Control Center`, [
 			{ value: "settings", label: "Settings", description: "Persisted defaults and Display workspace" },
 			{
 				value: "controls",
 				label: "Controls",
-				description: `Session controls · Sidebar: ${sidebarStatusLabel(sidebar.getStatus())}`,
+				description: `Session controls ${runtime.getConfig().nerdFont ? "·" : "-"} Sidebar: ${sidebarStatusLabel(sidebar.getStatus(), runtime.getConfig().nerdFont)}`,
 			},
 			...(openUsage
 				? [{ value: "usage", label: "Subagent usage", description: "Cost curves and individual reply costs" }]

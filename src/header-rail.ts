@@ -1,5 +1,6 @@
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { createPalette, type PaletteRole, type ThemeLike } from "./palette.js";
+import { asciiGlyphText, surfaceGlyphs } from "./glyphs.js";
 import { isSectionExpanded, type SectionExpansion, sectionSummary } from "./rail-sections.js";
 import { isBuiltinSidebarPanelId } from "./sidebar-panels.js";
 import { isColorEnabled } from "./text.js";
@@ -17,7 +18,6 @@ const SECTION_ROLES: Partial<Record<BuiltinSidebarPanelId, PaletteRole>> = {
 	subagents: "output",
 	tools: "chartPink",
 };
-const SEPARATOR = "  ·  ";
 // Activity and Context remain owned by the footer when the rail is on top.
 const FOOTER_OWNED_SECTIONS = new Set<BuiltinSidebarPanelId>(["activity", "context"]);
 
@@ -32,6 +32,8 @@ export function renderHeaderRail(
 	const safeWidth = Math.max(0, Math.trunc(width));
 	if (safeWidth === 0) return [];
 	const palette = createPalette(theme, isColorEnabled());
+	const glyphs = surfaceGlyphs("headerRail", config.nerdFont);
+	const separator = `  ${glyphs.bullet}  `;
 	const sections = config.sidebarPanelLayout.flatMap(({ id, visible }) => {
 		if (
 			!visible ||
@@ -42,9 +44,13 @@ export function renderHeaderRail(
 		const role = SECTION_ROLES[id];
 		if (!role) return [];
 		const expanded = isSectionExpanded(expansion, id);
-		const summary = expanded ? sectionSummary(snapshot, id) : "";
+		const summary = expanded
+			? config.nerdFont
+				? sectionSummary(snapshot, id)
+				: asciiGlyphText(sectionSummary(snapshot, id), "headerRail")
+			: "";
 		if (!summary && expanded) return [];
-		const marker = config.nerdFont ? (expanded ? "▾" : "▸") : expanded ? "[-]" : "[+]";
+		const marker = expanded ? glyphs.railExpanded : glyphs.railCollapsed;
 		const content = `${marker} ${id.toUpperCase()}${summary ? ` ${summary}` : ""}`;
 		const text = focusedId === id ? theme.bold(`<${content}>`) : content;
 		return [palette.paint(role, text)];
@@ -58,12 +64,12 @@ export function renderHeaderRail(
 		let row = "";
 		while (sectionIndex < sections.length) {
 			const section = sections[sectionIndex]!;
-			const next = row ? `${row}${SEPARATOR}${section}` : section;
+			const next = row ? `${row}${separator}${section}` : section;
 			if (visibleWidth(next) <= safeWidth) {
 				row = next;
 				sectionIndex++;
 			} else if (!row) {
-				row = truncateToWidth(section, safeWidth, "…");
+				row = truncateToWidth(section, safeWidth, glyphs.ellipsis);
 				sectionIndex++;
 				break;
 			} else break;
@@ -72,12 +78,12 @@ export function renderHeaderRail(
 	}
 
 	if (sectionIndex < sections.length) {
-		const marker = `… +${sections.length - sectionIndex}`;
-		const suffix = `${SEPARATOR}${marker}`;
+		const marker = `${glyphs.ellipsis} +${sections.length - sectionIndex}`;
+		const suffix = `${separator}${marker}`;
 		const finalRow = rows.length - 1;
 		const available = Math.max(0, safeWidth - visibleWidth(suffix));
-		rows[finalRow] = `${truncateToWidth(rows[finalRow] ?? "", available, "…")}${suffix}`;
-		rows[finalRow] = truncateToWidth(rows[finalRow]!, safeWidth, "…");
+		rows[finalRow] = `${truncateToWidth(rows[finalRow] ?? "", available, glyphs.ellipsis)}${suffix}`;
+		rows[finalRow] = truncateToWidth(rows[finalRow]!, safeWidth, glyphs.ellipsis);
 	}
 	return rows.filter(Boolean);
 }

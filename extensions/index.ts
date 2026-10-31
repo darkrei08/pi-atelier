@@ -864,6 +864,7 @@ export default function atelierExtension(
 		cleanup.push(() => panelRegistry.dispose());
 		const completionNotifier = createCompletionNotifier({
 			isEnabled: () => enabled && isPublished() && runtime.getConfig().completionNotifications,
+			getNerdFont: () => runtime.getConfig().nerdFont,
 			...(dependencies.notificationPlatform === undefined
 				? {}
 				: { platform: dependencies.notificationPlatform }),

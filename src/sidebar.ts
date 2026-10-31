@@ -7,6 +7,7 @@ import { contextRole } from "./footer.js";
 import { type PrefillSnapshot, formatPrefillRows } from "./prefill.js";
 import { hasCapturingOverlay } from "./image-compositor.js";
 import { formatTokens } from "./metrics.js";
+import { asciiGlyphText, surfaceGlyphs } from "./glyphs.js";
 import { type AtelierPalette, createPalette, type PaletteRole, type ThemeLike } from "./palette.js";
 import {
 	EMPTY_RUN_ACTIVITY,
@@ -389,12 +390,13 @@ function activeToolNameRows(
 }
 
 const TODO_CHECK = {
-	completed: { role: "ready", glyph: "✓" },
-	in_progress: { role: "warning", glyph: "◐" },
-	pending: { role: "dim", glyph: "○" },
-} as const satisfies Record<NormalizedTodo["status"], { role: PaletteRole; glyph: string }>;
+	completed: { role: "ready" },
+	in_progress: { role: "warning" },
+	pending: { role: "dim" },
+} as const satisfies Record<NormalizedTodo["status"], { role: PaletteRole }>;
 
-function todosRows(snapshot: SidebarSnapshot, palette: AtelierPalette): string[] {
+function todosRows(snapshot: SidebarSnapshot, palette: AtelierPalette, nerdFont: boolean): string[] {
+	const glyphs = surfaceGlyphs("sidebar", nerdFont);
 	const todos = snapshot.todos;
 	if (todos.length === 0) return [];
 	const done = todos.filter((todo) => todo.status === "completed").length;
@@ -404,8 +406,14 @@ function todosRows(snapshot: SidebarSnapshot, palette: AtelierPalette): string[]
 		palette.paint("muted", `${done}/${todos.length}`),
 		...visible.map((todo) => {
 			const check = TODO_CHECK[todo.status];
+			const glyph =
+				todo.status === "completed"
+					? glyphs.todoCompleted
+					: todo.status === "in_progress"
+						? glyphs.todoInProgress
+						: glyphs.todoPending;
 			const textRole = todo.status === "completed" ? "dim" : "primary";
-			return `${palette.paint(check.role, check.glyph)} ${palette.paint("accent", `#${todo.id}`)} ${palette.paint(
+			return `${palette.paint(check.role, glyph)} ${palette.paint("accent", `#${todo.id}`)} ${palette.paint(
 				textRole,
 				sanitizeInline(todo.text),
 			)}`;
@@ -771,7 +779,7 @@ export function renderSidebarLines(
 			{
 				name: "todos",
 				panel: { id: "todos", title: "TODOS", role: "accent" },
-				rows: todosRows(snapshot, palette),
+				rows: todosRows(snapshot, palette, config.nerdFont),
 				dropRank: DROP_RANK.todos,
 			},
 		],
@@ -826,7 +834,7 @@ export function renderSidebarLines(
 							? [
 									palette.paint(
 										"accent",
-										`${config.nerdFont ? BRANCH_ICON : "⎇"} ${sanitizeInline(snapshot.branch) || PLACEHOLDER}`,
+										`${config.nerdFont ? BRANCH_ICON : surfaceGlyphs("sidebar", false).branch} ${sanitizeInline(snapshot.branch) || PLACEHOLDER}`,
 									),
 								]
 							: []),
@@ -946,13 +954,9 @@ export function renderSidebarLines(
 			dropRank: DROP_RANK.required,
 		});
 	}
-	return renderDock(
-		renderGroups(composeGroups(ordered, safeHeight), contentWidth, palette, theme),
-		safeWidth,
-		safeHeight,
-		palette,
-		resizing,
-	);
+	const rows = renderGroups(composeGroups(ordered, safeHeight), contentWidth, palette, theme);
+	if (!config.nerdFont) rows.forEach((row, index) => (rows[index] = asciiGlyphText(row, "sidebar")));
+	return renderDock(rows, safeWidth, safeHeight, palette, resizing);
 }
 
 export interface SidebarComponentOptions {

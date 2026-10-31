@@ -1,6 +1,7 @@
 import { type Component, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { DEFAULT_CONFIG } from "./config.js";
 import { formatTokens } from "./metrics.js";
+import { surfaceGlyphs } from "./glyphs.js";
 import { type AtelierPalette, createPalette, type PaletteRole, type ThemeLike } from "./palette.js";
 import { responsePerformanceValues } from "./run-activity.js";
 import { PLACEHOLDER, sanitizeInline } from "./text.js";
@@ -153,7 +154,15 @@ function activityText(
 	const label = state.activity === "working" && !compact ? (state.workingLabel ?? fallback) : fallback;
 	const dots =
 		state.activity === "working" && !compact ? workingDots.padEnd(WORKING_DOT_FRAMES[0].length, " ") : "";
-	const marker = state.activity === "error" ? "× " : nerdFont ? "● " : "";
+	const glyphs = surfaceGlyphs("footer", nerdFont);
+	const marker =
+		state.activity === "error"
+			? `${glyphs.activityError} `
+			: nerdFont
+				? "● "
+				: state.activity === "working"
+					? `${glyphs.activityWorking} `
+					: "";
 	return palette.paint(state.activity, theme.bold(`${marker}${sanitizeInline(label)}${dots}`));
 }
 
@@ -164,6 +173,7 @@ interface ItemContext {
 	palette: AtelierPalette;
 	symbols: FooterSymbols;
 	workingDots: string;
+	glyphs: ReturnType<typeof surfaceGlyphs>;
 }
 
 const item = (id: FooterItemId, full: string, compact = full): FooterItem => ({ id, full, compact });
@@ -184,14 +194,15 @@ const SEGMENT_ITEMS: Record<SegmentId, (context: ItemContext) => FooterItem[]> =
 			activityText(state, palette, theme, workingDots, true, config.nerdFont),
 		),
 	],
-	model: ({ state, palette, theme, symbols }) => {
+	model: ({ state, palette, theme, symbols, config }) => {
 		const icon = iconFor(palette);
 		const items: FooterItem[] = [];
+		const glyphs = surfaceGlyphs("footer", config.nerdFont);
 		const model = state.modelId ? sanitizeInline(state.modelId) : "";
 		if (model) {
 			const paint = (text: string) =>
 				icon(symbols.model, palette.paint("accent", theme.bold(text)), "accent");
-			items.push(item("model", paint(model), paint(truncateToWidth(model, 24, "…"))));
+			items.push(item("model", paint(model), paint(truncateToWidth(model, 24, glyphs.ellipsis))));
 		}
 		const thinking = state.thinkingLevel ? sanitizeInline(state.thinkingLevel) : "";
 		if (thinking) {
@@ -200,19 +211,20 @@ const SEGMENT_ITEMS: Record<SegmentId, (context: ItemContext) => FooterItem[]> =
 		}
 		return items;
 	},
-	git: ({ state, palette, symbols }) => {
+	git: ({ state, palette, symbols, config }) => {
 		const icon = iconFor(palette);
+		const glyphs = surfaceGlyphs("footer", config.nerdFont);
 		const items: FooterItem[] = [];
 		const workspace = state.workspaceLabel ? sanitizeInline(state.workspaceLabel) : "";
 		if (workspace) {
 			const paint = (text: string) => icon(symbols.workspace, palette.paint("cache", text), "cache");
-			items.push(item("workspace", paint(workspace), paint(truncateToWidth(workspace, 18, "…"))));
+			items.push(item("workspace", paint(workspace), paint(truncateToWidth(workspace, 18, glyphs.ellipsis))));
 		}
 		const branch = state.branch ? sanitizeInline(state.branch) : "";
 		if (branch) {
 			const dirty = state.dirty ? palette.paint("warning", "*") : "";
 			const paint = (text: string) => icon(symbols.git, `${palette.paint("input", text)}${dirty}`, "input");
-			items.push(item("git", paint(branch), paint(truncateToWidth(branch, 18, "…"))));
+			items.push(item("git", paint(branch), paint(truncateToWidth(branch, 18, glyphs.ellipsis))));
 		}
 		return items;
 	},
@@ -318,6 +330,7 @@ function renderZone(
 	compactIds: ReadonlySet<FooterItemId>,
 	palette: AtelierPalette,
 	separator: string,
+	glyphs: ReturnType<typeof surfaceGlyphs>,
 ): string {
 	return items
 		.map((placed, index) => {
@@ -326,7 +339,7 @@ function renderZone(
 			if (!previous) return text;
 			const group = ITEM_META[placed.id].group;
 			if (ITEM_META[previous.id].group !== group) return `${palette.paint("dim", ` ${separator} `)}${text}`;
-			return `${group === "model" || group === "workspace" ? palette.paint("dim", " · ") : "  "}${text}`;
+			return `${group === "model" || group === "workspace" ? palette.paint("dim", ` ${glyphs.bullet} `) : "  "}${text}`;
 		})
 		.join("");
 }
@@ -338,6 +351,7 @@ function compose(
 	palette: AtelierPalette,
 	separator: string,
 	flow: boolean,
+	glyphs: ReturnType<typeof surfaceGlyphs>,
 ): string {
 	const active = [...items];
 	const compactIds = new Set<FooterItemId>();
@@ -347,6 +361,7 @@ function compose(
 			compactIds,
 			palette,
 			separator,
+			glyphs,
 		);
 	const flowGap = visibleWidth(` ${separator} `);
 	const measured = () => {
@@ -422,7 +437,8 @@ function renderFooter(
 	if (width <= 0) return { line: "", workingActivity: undefined };
 	const palette = createPalette(theme, colorEnabled);
 	const symbols = config.nerdFont ? FOOTER_ICONS : PLAIN_SYMBOLS;
-	const items = buildItems({ state, config, theme, palette, symbols, workingDots });
+	const glyphs = surfaceGlyphs("footer", config.nerdFont);
+	const items = buildItems({ state, config, theme, palette, symbols, workingDots, glyphs });
 	const workingActivity =
 		state.activity === "working" && config.density !== "compact"
 			? items.find((footerItem) => footerItem.id === "activity")?.full
@@ -448,7 +464,7 @@ function renderFooter(
 			.filter((footerItem) => surface === "all" || ITEM_META[footerItem.id].header)
 			.map((footerItem) => ({ ...footerItem, zone: ITEM_META[footerItem.id].zone }));
 	}
-	const line = compose(placed, width, palette, symbols.separator, surface === "header");
+	const line = compose(placed, width, palette, symbols.separator, surface === "header", glyphs);
 	if (
 		surface === "telemetry" &&
 		placed.length > 0 &&

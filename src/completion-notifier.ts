@@ -1,5 +1,6 @@
 import { spawn as nodeSpawn, type SpawnOptions } from "node:child_process";
 import { sanitizeInline } from "./text.js";
+import { surfaceGlyphs } from "./glyphs.js";
 
 type CompletionNotificationKind = "turn-settled" | "input-requested";
 
@@ -24,6 +25,7 @@ export type SpawnNotificationProcess = (
 
 export interface CompletionNotifierOptions {
 	isEnabled(): boolean;
+	getNerdFont?(): boolean;
 	platform?: NodeJS.Platform;
 	spawn?: SpawnNotificationProcess;
 }
@@ -64,11 +66,12 @@ export function createCompletionNotifier(options: CompletionNotifierOptions): Co
 	const deliver = (kind: CompletionNotificationKind, notification: CompletionNotification): void => {
 		if (!options.isEnabled()) return;
 		let cancel: (() => void) | undefined;
+		const separator = surfaceGlyphs("notification", options.getNerdFont?.() ?? true).bullet;
 		cancel = deliverSystemNotification(
 			platform,
 			spawn,
-			formatTitle(notification),
-			formatBody(kind, notification),
+			formatTitle(notification, separator),
+			formatBody(kind, notification, separator),
 			() => {
 				if (cancel) pendingSystemNotifications.delete(cancel);
 			},
@@ -101,12 +104,16 @@ export function createCompletionNotifier(options: CompletionNotifierOptions): Co
 	};
 }
 
-function formatTitle(notification: CompletionNotification): string {
+function formatTitle(notification: CompletionNotification, separator: string): string {
 	const project = sanitize(notification.projectName, 80);
-	return project.length > 0 ? `Pi Atelier · ${project}` : "Pi Atelier";
+	return project.length > 0 ? `Pi Atelier ${separator} ${project}` : "Pi Atelier";
 }
 
-function formatBody(kind: CompletionNotificationKind, notification: CompletionNotification): string {
+function formatBody(
+	kind: CompletionNotificationKind,
+	notification: CompletionNotification,
+	separator: string,
+): string {
 	const parts = [kind === "input-requested" ? "Input requested" : "Turn settled"];
 	const session = sanitize(notification.sessionName ?? "", 100);
 	if (session.length > 0) parts.push(session);
@@ -116,7 +123,7 @@ function formatBody(kind: CompletionNotificationKind, notification: CompletionNo
 		if (completed > 0) parts.push(`${completed} done`);
 		if (failed > 0) parts.push(`${failed} failed`);
 	}
-	return parts.join(" · ");
+	return parts.join(` ${separator} `);
 }
 
 function deliverSystemNotification(
