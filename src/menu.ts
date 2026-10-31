@@ -13,6 +13,8 @@ import {
 	truncateToWidth,
 } from "@earendil-works/pi-tui";
 import { saveUserConfigPatch } from "./config.js";
+import { isSectionExpanded, toggleSection } from "./rail-sections.js";
+import { BUILTIN_SIDEBAR_PANEL_IDS, isBuiltinSidebarPanelId } from "./sidebar-panels.js";
 import { isLifetimeActive, openLifecycleOverlay, type OverlayLifetime } from "./overlay-lifecycle.js";
 import type { ThemeLike } from "./palette.js";
 import {
@@ -438,6 +440,16 @@ export async function openAtelierControlCenter(
 					description: "Global user preference",
 				},
 				{
+					value: "placement",
+					label: `Panel placement: ${config.panelPlacement}`,
+					description: "Use the right sidebar or the header rail",
+				},
+				...BUILTIN_SIDEBAR_PANEL_IDS.map((id) => ({
+					value: `section-${id}`,
+					label: `${id.toUpperCase()}: ${isSectionExpanded(config.sectionExpansion, id) ? "Expanded" : "Collapsed"}`,
+					description: "Toggle this header section",
+				})),
+				{
 					value: "notifications",
 					label: `Completion notifications: ${onOff(config.completionNotifications)}`,
 					description: "User preference",
@@ -475,6 +487,16 @@ export async function openAtelierControlCenter(
 				case "sidebar-startup":
 					await actions.setShowSidebarOnStartup(!runtime.getConfig().showSidebarOnStartup);
 					break;
+				case "placement": {
+					const placement = runtime.getConfig().panelPlacement === "right" ? "top" : "right";
+					runtime.replaceSessionDisplayOverride({
+						...runtime.getSessionDisplayOverride(),
+						sourcePanelPlacement: placement,
+					});
+					if ((placement === "top") === sidebar.getStatus().enabled) sidebar.toggle();
+					ctx.ui.notify(`Panel placement: ${placement}`, "info");
+					break;
+				}
 				case "notifications":
 					await actions.setCompletionNotifications(!runtime.getConfig().completionNotifications);
 					break;
@@ -485,6 +507,22 @@ export async function openAtelierControlCenter(
 					await sidebar.toggleToolList();
 					break;
 				default:
+					if (choice?.startsWith("section-")) {
+						const id = choice.slice("section-".length);
+						if (isBuiltinSidebarPanelId(id)) {
+							const config = runtime.getConfig();
+							const sectionExpansion = toggleSection(config.sectionExpansion, id);
+							runtime.replaceSessionDisplayOverride({
+								...runtime.getSessionDisplayOverride(),
+								sectionExpansion,
+							});
+							ctx.ui.notify(
+								`${id.toUpperCase()} ${isSectionExpanded(sectionExpansion, id) ? "expanded" : "collapsed"}`,
+								"info",
+							);
+						}
+						break;
+					}
 					return;
 			}
 		}

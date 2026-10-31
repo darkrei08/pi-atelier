@@ -89,6 +89,17 @@ describe("extension registration", () => {
 		}
 	});
 
+	it("routes session panel placement and builtin section toggles", async () => {
+		const h = harness();
+		await start(h);
+		await command(h, "placement top");
+		expect(h.ctx.ui.notify).toHaveBeenLastCalledWith("Panel placement: top", "info");
+		await command(h, "section agent");
+		expect(h.ctx.ui.notify).toHaveBeenLastCalledWith("AGENT collapsed", "info");
+		await command(h, "section agent");
+		expect(h.ctx.ui.notify).toHaveBeenLastCalledWith("AGENT expanded", "info");
+	});
+
 	it("routes f6 to the Control Center", async () => {
 		const h = harness("tui", "linux", true);
 		await start(h);

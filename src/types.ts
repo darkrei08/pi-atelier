@@ -60,7 +60,11 @@ export interface DisplayLayerState {
 }
 
 /** A detached copy of the Session Display layer. */
-export type SessionDisplayOverride = Omit<DisplayPatch, "sidebarPanelLayout">;
+export type SessionDisplayOverride = Omit<DisplayPatch, "sidebarPanelLayout"> & {
+	sourcePanelPlacement?: PanelPlacement;
+	headerRailRows?: number;
+	sectionExpansion?: Partial<Record<BuiltinSidebarPanelId, boolean>>;
+};
 
 export interface ResponsePerformance {
 	ttftMs: number;
@@ -73,7 +77,12 @@ export interface DisplayValue {
 	available: boolean;
 }
 
+export type PanelPlacement = "right" | "top";
+
 export interface AtelierConfig extends DisplaySettings {
+	panelPlacement: PanelPlacement;
+	headerRailRows: number;
+	sectionExpansion: Partial<Record<BuiltinSidebarPanelId, boolean>>;
 	nerdFont: boolean;
 	shortcut: string;
 	/** Optional key that toggles the sidebar directly; empty means no binding. */

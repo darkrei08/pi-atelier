@@ -73,6 +73,8 @@ Open `/atelier` or press **F6** to change display settings, control the sidebar,
 /atelier sidebar auto|manual  choose sidebar mode
 /atelier sidebar on|off       show or hide without changing mode
 /atelier sidebar tools        toggle tool names
+/atelier placement right|top  choose the sidebar or header rail
+/atelier section <id>         expand or collapse a header section
 /atelier enable|disable       set extension state
 ```
 
@@ -125,6 +127,12 @@ run, so the default `llama.cpp` covers only Pi's built-in llama extension: a pi-
 its instance id, such as `llama-swap-tre`. Matching ignores case and surrounding spaces. Progress
 reporting needs Pi 0.99 or newer.
 
+### Panel placement and collapsible sections
+
+The panel placement is **right** by default. Use `/atelier placement top` to hide the split sidebar and show its available sections in rows above the editor; `/atelier placement right` restores the sidebar. The top rail follows terminal width and `headerRailRows` sets its row cap from 1 through 4 (default 2). It uses the existing editor header surface and has no focus traversal or mouse interaction.
+
+Sections start expanded. Use `/atelier section agent` (or another built-in section ID) to toggle one; the Settings menu also lists each section's current expanded state. Changes to placement and expansion are session-scoped.
+
 ### Status rail presets
 
 | Preset | Layout |
@@ -151,6 +159,8 @@ Project settings override user settings, and session changes override both. Font
   "shortcut": "f6",
   "toggleShortcut": "",
   "density": "comfortable",
+  "sourcePanelPlacement": "right",
+  "headerRailRows": 2,
   "contextWarning": 70,
   "contextDanger": 90,
   "showFooter": true,

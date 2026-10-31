@@ -15,11 +15,13 @@ import {
 	type SpawnNotificationProcess,
 } from "../src/completion-notifier.js";
 import { DEFAULT_CONFIG, loadConfig, saveUserConfigPatch } from "../src/config.js";
+import { renderHeaderRail } from "../src/header-rail.js";
 import { AtelierEditor } from "../src/editor.js";
 import { type AtelierFooterComponent, createFooterComponent } from "../src/footer.js";
 import { createImageCompositorBinding } from "../src/image-compositor.js";
 import { openAtelierControlCenter, openDisplaySettingsWorkspace, sidebarStatusLabel } from "../src/menu.js";
 import type { OverlayLifetime } from "../src/overlay-lifecycle.js";
+import type { ThemeLike } from "../src/palette.js";
 import {
 	createPrefillThrottle,
 	createPrefillTracker,
@@ -36,12 +38,14 @@ import {
 	type SidebarSnapshot,
 } from "../src/sidebar.js";
 import {
+	BUILTIN_SIDEBAR_PANEL_IDS,
 	createSidebarPanelRegistry,
 	isBuiltinSidebarPanelId,
 	type SidebarPanelData,
 	type SidebarPanelRegistry,
 } from "../src/sidebar-panels.js";
 import { AtelierRuntime, createInertAtelierState } from "../src/state.js";
+import { isSectionExpanded, toggleSection } from "../src/rail-sections.js";
 import { emptySubagentUsage } from "../src/subagent-usage.js";
 import { openSubagentUsage } from "../src/subagent-usage-view.js";
 import { errorMessage, isColorEnabled, isRecord } from "../src/text.js";
@@ -462,7 +466,9 @@ export default function atelierExtension(
 					if (enabled && isCurrent()) sidebar.setMode(mode);
 				},
 				toggle: () => {
-					if (enabled && isCurrent()) sidebar.toggle();
+					if (!enabled || !isCurrent()) return;
+					if (runtime.getConfig().panelPlacement === "top") sidebar.hide();
+					else sidebar.toggle();
 				},
 				isToolListExpanded: () => isCurrent() && runtime.getConfig().showSidebarToolNames,
 				toggleToolList: async () => {
@@ -504,6 +510,7 @@ export default function atelierExtension(
 		targetSession.footerInstalled = true;
 		let editor: AtelierEditor | undefined;
 		let footer: AtelierFooterComponent | undefined;
+		let headerTheme: ThemeLike | undefined;
 		let headerRendered = false;
 		let editorInstalled = false;
 		const detachEditor = (): void => {
@@ -518,6 +525,7 @@ export default function atelierExtension(
 				: undefined;
 		};
 		ctx.ui.setFooter((tui, theme, footerData) => {
+			headerTheme = theme;
 			const footerRequestRender = (): void => {
 				if (getCurrentSession()) tui.requestRender();
 			};
@@ -582,8 +590,23 @@ export default function atelierExtension(
 				next.renderStatusLine = (width) => {
 					// Fullscreen Pi crops the top of a tall draft after editor rendering.
 					// Keep essential state in the bottom footer on short terminals.
-					const line =
-						getCurrentSession() && tui.terminal.rows >= 12 ? (footer?.renderHeader(width) ?? "") : "";
+					const current = getCurrentSession();
+					if (!current || !footer || !headerTheme) {
+						headerRendered = false;
+						return "";
+					}
+					const config = current.runtime.getConfig();
+					if (config.panelPlacement === "top") {
+						headerRendered = false;
+						return renderHeaderRail(
+							getSidebarSnapshot(current),
+							config,
+							headerTheme,
+							width,
+							config.sectionExpansion,
+						).join("\n");
+					}
+					const line = tui.terminal.rows >= 12 ? footer.renderHeader(width) : "";
 					headerRendered = Boolean(line);
 					return line;
 				};
@@ -604,9 +627,54 @@ export default function atelierExtension(
 		ctx.ui.notify(`Usage: /atelier ${syntax}`, "warning");
 	const isOnOff = (value: string | undefined): boolean =>
 		value === undefined || value === "on" || value === "off";
+	const setPanelPlacement = (ctx: ExtensionContext, placement: "right" | "top"): void => {
+		const current = requireActiveSession(ctx);
+		if (!current) return;
+		current.runtime.replaceSessionDisplayOverride({
+			...current.runtime.getSessionDisplayOverride(),
+			sourcePanelPlacement: placement,
+		});
+		if (enabled && placement === "right") current.sidebar.show();
+		else current.sidebar.hide();
+		requestAllRenders(current);
+		ctx.ui.notify(`Panel placement: ${placement}`, "info");
+	};
+	const toggleRailSection = (ctx: ExtensionContext, id: string): void => {
+		const current = requireActiveSession(ctx);
+		if (!current) return;
+		if (!isBuiltinSidebarPanelId(id)) {
+			usage(ctx, `section <${BUILTIN_SIDEBAR_PANEL_IDS.join("|")}>`);
+			return;
+		}
+		const config = current.runtime.getConfig();
+		const sectionExpansion = toggleSection(config.sectionExpansion, id);
+		current.runtime.replaceSessionDisplayOverride({
+			...current.runtime.getSessionDisplayOverride(),
+			sectionExpansion,
+		});
+		requestAllRenders(current);
+		ctx.ui.notify(
+			`${id.toUpperCase()} ${isSectionExpanded(sectionExpansion, id) ? "expanded" : "collapsed"}`,
+			"info",
+		);
+	};
 
 	const commands = new Map<string, CommandHandler>(
 		Object.entries({
+			placement: (ctx, [placement, ...extra]) => {
+				if ((placement !== "right" && placement !== "top") || extra.length > 0) {
+					usage(ctx, "placement right|top");
+					return;
+				}
+				setPanelPlacement(ctx, placement);
+			},
+			section: (ctx, [id, ...extra]) => {
+				if (!id || extra.length > 0) {
+					usage(ctx, `section <${BUILTIN_SIDEBAR_PANEL_IDS.join("|")}>`);
+					return;
+				}
+				toggleRailSection(ctx, id);
+			},
 			usage: async (ctx, args) => {
 				if (args.length > 0) usage(ctx, "usage");
 				else await openUsage(ctx);
@@ -622,6 +690,10 @@ export default function atelierExtension(
 				}
 				const current = requireActiveSession(ctx);
 				if (!current) return;
+				if (current.runtime.getConfig().panelPlacement === "top") {
+					ctx.ui.notify("Sidebar is hidden while panel placement is top", "info");
+					return;
+				}
 				if (!enabled && sidebarAction !== "off") {
 					ctx.ui.notify("Enable Pi Atelier with /atelier enable before showing its sidebar", "info");
 					return;
@@ -902,7 +974,8 @@ export default function atelierExtension(
 			session.sidebar.setMode("manual");
 			if (enabled) {
 				syncFooter(session);
-				if (loaded.config.showSidebarOnStartup) session.sidebar.show();
+				if (loaded.config.showSidebarOnStartup && loaded.config.panelPlacement === "right")
+					session.sidebar.show();
 			}
 			void session.runtime.flushWorkspacePulseRefresh();
 		} catch (error) {
