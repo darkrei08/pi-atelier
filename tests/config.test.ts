@@ -54,6 +54,19 @@ describe("configuration validation", () => {
 		expect(result.config.sidebarPanelLayout.find((entry) => entry.id === "todos")?.visible).toBe(false);
 	});
 
+	it("places a panel that a saved Sidebar layout predates next to its product-order neighbour", () => {
+		const saved = ["agent", "activity", "context", "vendor:queue", "workspace", "usage"].map((id) => ({
+			id,
+			visible: true,
+		}));
+		const layout = validateConfig({ sidebarPanelLayout: saved }).config.sidebarPanelLayout;
+		const ids = layout.map((entry) => entry.id);
+		expect(ids.slice(ids.indexOf("context"), ids.indexOf("context") + 2)).toEqual(["context", "prefill"]);
+		expect(ids.indexOf("prefill")).toBeLessThan(ids.indexOf("vendor:queue"));
+		expect(ids.indexOf("vendor:queue")).toBeLessThan(ids.indexOf("workspace"));
+		expect(ids.indexOf("tools")).toBe(ids.length - 1);
+	});
+
 	it("applies named templates atomically before same-layer deviations", () => {
 		const named = validateConfig({ preset: "minimal" });
 		expect(named.config).toMatchObject({ preset: "minimal", density: "compact" });
@@ -292,5 +305,41 @@ describe("configuration files", () => {
 			completionNotifications: false,
 			nerdFont: false,
 		});
+	});
+
+	it("defaults prefill to a llama.cpp-only panel with four distinct views", () => {
+		expect(DEFAULT_CONFIG).toMatchObject({
+			prefillEnabled: true,
+			prefillViews: ["percent", "tokens", "eta", "rate"],
+			prefillProviders: ["llama.cpp"],
+		});
+		// A view repeated in the default list would draw the same row twice.
+		expect(new Set(DEFAULT_CONFIG.prefillViews).size).toBe(DEFAULT_CONFIG.prefillViews.length);
+	});
+
+	it("keeps the known prefill views and warns about the rest", () => {
+		const known = validateConfig({ prefillViews: ["tokens", "rate", "eta"] });
+		expect(known.config.prefillViews).toEqual(["tokens", "rate", "eta"]);
+		expect(known.warnings).toEqual([]);
+
+		const unknown = validateConfig({ prefillViews: ["tokens", "tps"] });
+		expect(unknown.config.prefillViews).toEqual(["tokens"]);
+		expect(unknown.warnings).toContain("Unknown prefillViews: tps");
+
+		const malformed = validateConfig({ prefillViews: "percent" });
+		expect(malformed.config.prefillViews).toEqual(DEFAULT_CONFIG.prefillViews);
+		expect(malformed.warnings).toContain("prefillViews must be an array");
+	});
+
+	it("keeps prefillProviders as a global user preference", async () => {
+		await writeJson(userPath, { prefillProviders: ["llama.cpp"] });
+		await writeJson(projectPath, { prefillProviders: ["vllm"] });
+		const result = await loadConfig({
+			userPath,
+			projectPath,
+			projectTrusted: true,
+			session: { prefillProviders: ["strata"] },
+		});
+		expect(result.config.prefillProviders).toEqual(["llama.cpp"]);
 	});
 });

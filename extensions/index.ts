@@ -20,6 +20,13 @@ import { type AtelierFooterComponent, createFooterComponent } from "../src/foote
 import { createImageCompositorBinding } from "../src/image-compositor.js";
 import { openAtelierControlCenter, openDisplaySettingsWorkspace, sidebarStatusLabel } from "../src/menu.js";
 import type { OverlayLifetime } from "../src/overlay-lifecycle.js";
+import {
+	createPrefillThrottle,
+	createPrefillTracker,
+	OPENAI_COMPLETIONS_API,
+	type PrefillThrottle,
+	type PrefillTracker,
+} from "../src/prefill.js";
 import { createRunActivityTracker, type RunActivityTracker } from "../src/run-activity.js";
 import type { SidebarPanelSetting } from "../src/settings-workspace.js";
 import {
@@ -83,6 +90,34 @@ export type {
 	SidebarPanelLayoutEntry,
 } from "../src/types.js";
 
+/**
+ * `provider_stream_event` only exists from Pi 0.99, while the pinned devDependency is older, so
+ * registration goes through a narrow local shape. On a Pi that never emits the event the handler
+ * simply stays inert. Pi emits it as `{ type, provider, api, model, data }`, where `data` is the
+ * raw parsed stream chunk — for `openai-completions` that is the chunk object itself, carrying
+ * `prompt_progress` when the request asked for it. Pi 0.99 also returns an unsubscribe from `on`,
+ * which the pinned types do not declare.
+ */
+interface ProviderStreamEventLike {
+	readonly api?: string;
+	readonly data: unknown;
+}
+
+/** Start listening for provider stream chunks and return the way to stop. */
+function registerProviderStreamHandler(
+	pi: ExtensionAPI,
+	handler: (event: ProviderStreamEventLike, ctx: ExtensionContext) => void,
+): () => void {
+	const capable = pi as ExtensionAPI & {
+		on(
+			event: "provider_stream_event",
+			handler: (event: ProviderStreamEventLike, ctx: ExtensionContext) => void,
+		): (() => void) | void;
+	};
+	const unsubscribe = capable.on("provider_stream_event", handler);
+	return typeof unsubscribe === "function" ? unsubscribe : (): void => undefined;
+}
+
 export interface AtelierExtensionDependencies {
 	loadConfig?: typeof loadConfig;
 	saveConfigPatch?: typeof saveUserConfigPatch;
@@ -98,6 +133,9 @@ interface ActiveSession {
 	readonly sidebar: SidebarController;
 	readonly panelRegistry: SidebarPanelRegistry;
 	readonly runActivity: RunActivityTracker;
+	/** Live prefill progress for the current provider request, plus the render coalescing it needs. */
+	readonly prefill: PrefillTracker;
+	readonly prefillThrottle: PrefillThrottle;
 	readonly completionNotifier: CompletionNotifier;
 	readonly retiredState: AtelierState;
 	readonly retiredConfig: AtelierConfig;
@@ -158,6 +196,8 @@ export default function atelierExtension(
 	const noopRender = (): void => undefined;
 	let activeSession: ActiveSession | undefined;
 	let enabled = true;
+	/** Set while a prefill-annotated request is in flight; `on` gives the unsubscribe on Pi 0.99. */
+	let prefillStreamOff: (() => void) | undefined;
 	let customShortcutsRegistered = false;
 	let lifecycleToken: LifecycleToken = { id: 0 };
 	let initializingSessionManager: ExtensionContext["sessionManager"] | undefined;
@@ -216,10 +256,11 @@ export default function atelierExtension(
 				availableToolCount: 0,
 			});
 		}
-		const { ctx, panelRegistry, runActivity, runtime } = targetSession;
+		const { ctx, panelRegistry, prefill, runActivity, runtime } = targetSession;
 		const sessionName = ctx.sessionManager.getSessionName();
 		const sessionFile = ctx.sessionManager.getSessionFile();
 		const activeTools = pi.getActiveTools();
+		const prefillProgress = prefill.getSnapshot();
 		return buildSidebarSnapshot({
 			state: { ...runtime.getState(), extensionStatuses: targetSession.extensionStatuses },
 			cwd: ctx.cwd,
@@ -232,6 +273,7 @@ export default function atelierExtension(
 			runActivity: runActivity.getSnapshot(),
 			todos: targetSession.todos,
 			sidebarPanels: panelRegistry.getAvailable(),
+			...(prefillProgress ? { prefill: prefillProgress } : {}),
 		});
 	}
 
@@ -710,6 +752,19 @@ export default function atelierExtension(
 		};
 		const runActivity = createRunActivityTracker({ cwd: ctx.cwd, onChange: requestRenders });
 		cleanup.push(() => runActivity.reset());
+		const prefill = createPrefillTracker({ providers: config.prefillProviders });
+		const prefillThrottle = createPrefillThrottle({
+			requestRender: () => {
+				const current = activeSession;
+				if (current?.token === token) current.sidebar.requestRender();
+			},
+			schedule: (delayMs, run) => {
+				const timer = setTimeout(run, delayMs);
+				return () => clearTimeout(timer);
+			},
+		});
+		cleanup.push(() => prefillThrottle.cancel());
+		cleanup.push(() => stopListeningForPrefillChunks());
 		let autoCompact: boolean | null = null;
 		try {
 			autoCompact = SettingsManager.create(
@@ -773,6 +828,8 @@ export default function atelierExtension(
 			sidebar,
 			panelRegistry,
 			runActivity,
+			prefill,
+			prefillThrottle,
 			completionNotifier,
 			retiredState: createInertAtelierState(autoCompact),
 			retiredConfig: structuredClone(config),
@@ -885,8 +942,47 @@ export default function atelierExtension(
 		current.completionNotifier.runStarted();
 		current.runtime.scheduleWorkspacePulseRefresh();
 	});
-	pi.on("before_provider_request", (_event, ctx) => {
-		if (enabled) getActiveSession(ctx)?.runActivity.startResponse();
+	/** Pi awaits a per-chunk emit for every registered handler, so the chunk listener exists only
+	 *  while a request that asked for progress is in flight. */
+	function listenForPrefillChunks(): void {
+		if (prefillStreamOff) return;
+		prefillStreamOff = registerProviderStreamHandler(pi, (event, ctx) => {
+			const current = getActiveSession(ctx);
+			if (!enabled || !current || event.api !== OPENAI_COMPLETIONS_API) return;
+			const wasShowing = current.prefill.getSnapshot() !== undefined;
+			if (current.prefill.noteChunk(event.data)) {
+				current.prefillThrottle.note();
+				return;
+			}
+			// Generation started: the transient panel is gone, so redraw once to drop it.
+			if (wasShowing) {
+				current.prefillThrottle.cancel();
+				current.sidebar.requestRender();
+			}
+		});
+	}
+
+	function stopListeningForPrefillChunks(): void {
+		prefillStreamOff?.();
+		prefillStreamOff = undefined;
+	}
+
+	pi.on("before_provider_request", (event, ctx) => {
+		const current = getActiveSession(ctx);
+		if (!enabled || !current) return;
+		current.runActivity.startResponse();
+		const config = current.runtime.getConfig();
+		if (!config.prefillEnabled || config.prefillProviders.length === 0) {
+			stopListeningForPrefillChunks();
+			return;
+		}
+		if (!current.prefill.noteRequest(ctx.model, event.payload)) {
+			stopListeningForPrefillChunks();
+			return;
+		}
+		// The provider is allow-listed and streams: ask it to report prefill progress.
+		listenForPrefillChunks();
+		return { ...(event.payload as Record<string, unknown>), return_progress: true };
 	});
 	pi.on("message_update", (event, ctx) => {
 		const current = getActiveSession(ctx);
@@ -932,6 +1028,8 @@ export default function atelierExtension(
 		const current = getActiveSession(ctx);
 		if (!current || !ctx.isIdle()) return;
 		current.runActivity.settle();
+		current.prefill.clear();
+		current.prefillThrottle.cancel();
 		current.runtime.setActivity(current.providerFailed ? "error" : "ready");
 		if (!enabled) return;
 		current.sidebar.requestRender();
