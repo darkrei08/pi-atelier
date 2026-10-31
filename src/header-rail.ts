@@ -1,9 +1,14 @@
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { createPalette, type PaletteRole, type ThemeLike } from "./palette.js";
 import { asciiGlyphText, surfaceGlyphs } from "./glyphs.js";
-import { isSectionExpanded, type SectionExpansion, sectionSummary } from "./rail-sections.js";
+import {
+	isSectionExpanded,
+	sectionDetailRows,
+	type SectionExpansion,
+	sectionSummary,
+} from "./rail-sections.js";
 import { isBuiltinSidebarPanelId } from "./sidebar-panels.js";
-import { isColorEnabled } from "./text.js";
+import { isColorEnabled, sanitizeInline } from "./text.js";
 import type { AtelierConfig, BuiltinSidebarPanelId } from "./types.js";
 import type { SidebarSnapshot } from "./sidebar.js";
 
@@ -44,26 +49,32 @@ export function renderHeaderRail(
 		const role = SECTION_ROLES[id];
 		if (!role) return [];
 		const expanded = isSectionExpanded(expansion, id);
-		const summary = expanded
-			? config.nerdFont
-				? sectionSummary(snapshot, id)
-				: asciiGlyphText(sectionSummary(snapshot, id), "headerRail")
-			: "";
-		if (!summary && expanded) return [];
+		const rawSummary = expanded ? sectionSummary(snapshot, id) : "";
+		const summary = config.nerdFont ? rawSummary : asciiGlyphText(rawSummary, "headerRail");
+		const details = expanded
+			? sectionDetailRows(snapshot, id).map((line) =>
+					config.nerdFont ? line : asciiGlyphText(line, "headerRail"),
+				)
+			: [];
+		if (expanded && !summary && details.length === 0) return [];
 		const marker = expanded ? glyphs.railExpanded : glyphs.railCollapsed;
 		const content = `${marker} ${id.toUpperCase()}${summary ? ` ${summary}` : ""}`;
 		const text = focusedId === id ? theme.bold(`<${content}>`) : content;
-		return [palette.paint(role, text)];
+		return [{ id, text: palette.paint(role, text), expanded, details }];
 	});
 	if (sections.length === 0) return [];
 
 	const maxRows = Math.max(1, Math.min(4, Math.trunc(config.headerRailRows)));
+	const titleRowLimit = Math.max(
+		1,
+		maxRows - Number(sections.some(({ expanded, details }) => expanded && details.length > 0)),
+	);
 	const rows: string[] = [];
 	let sectionIndex = 0;
-	while (sectionIndex < sections.length && rows.length < maxRows) {
+	while (sectionIndex < sections.length && rows.length < titleRowLimit) {
 		let row = "";
 		while (sectionIndex < sections.length) {
-			const section = sections[sectionIndex]!;
+			const section = sections[sectionIndex]!.text;
 			const next = row ? `${row}${separator}${section}` : section;
 			if (visibleWidth(next) <= safeWidth) {
 				row = next;
@@ -77,13 +88,30 @@ export function renderHeaderRail(
 		rows.push(row);
 	}
 
-	if (sectionIndex < sections.length) {
-		const marker = `${glyphs.ellipsis} +${sections.length - sectionIndex}`;
+	const hiddenSections = sections.length - sectionIndex;
+	if (hiddenSections > 0) {
+		const marker = `${glyphs.ellipsis} +${hiddenSections}`;
 		const suffix = `${separator}${marker}`;
 		const finalRow = rows.length - 1;
-		const available = Math.max(0, safeWidth - visibleWidth(suffix));
-		rows[finalRow] = `${truncateToWidth(rows[finalRow] ?? "", available, glyphs.ellipsis)}${suffix}`;
+		rows[finalRow] =
+			`${truncateToWidth(rows[finalRow] ?? "", Math.max(0, safeWidth - visibleWidth(suffix)), glyphs.ellipsis)}${suffix}`;
 		rows[finalRow] = truncateToWidth(rows[finalRow]!, safeWidth, glyphs.ellipsis);
+	}
+
+	const details = sections
+		.slice(0, sectionIndex)
+		.flatMap(({ id, expanded, details }) =>
+			expanded ? details.map((line) => `${id.toUpperCase()} ${sanitizeInline(line)}`) : [],
+		);
+	const availableDetailRows = Math.max(0, maxRows - rows.length);
+	const visibleDetails = details.slice(0, availableDetailRows);
+	const omittedDetails = details.length - visibleDetails.length;
+	for (const detail of visibleDetails) rows.push(truncateToWidth(detail, safeWidth, glyphs.ellipsis));
+	if (omittedDetails > 0 && visibleDetails.length > 0) {
+		const suffix = ` ${glyphs.ellipsis} +${omittedDetails}`;
+		const finalDetail = rows.length - 1;
+		rows[finalDetail] =
+			`${truncateToWidth(visibleDetails.at(-1)!, Math.max(0, safeWidth - visibleWidth(suffix)), glyphs.ellipsis)}${suffix}`;
 	}
 	return rows.filter(Boolean);
 }

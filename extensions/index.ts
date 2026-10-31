@@ -533,19 +533,22 @@ export default function atelierExtension(
 			const current = getCurrentSession();
 			if (current) {
 				current.requestFooterRender = footerRequestRender;
-				current.railBar = createRailBar((width, rows) => {
-					const session = getCurrentSession();
-					if (!session) return [];
-					const config = session.runtime.getConfig();
-					return railBarLines(
-						getSidebarSnapshot(session),
-						config,
-						theme,
-						width,
-						rows,
-						config.sectionExpansion,
-					);
-				});
+				current.railBar = createRailBar(
+					(width, rows) => {
+						const session = getCurrentSession();
+						if (!session) return [];
+						const config = session.runtime.getConfig();
+						return railBarLines(
+							getSidebarSnapshot(session),
+							config,
+							theme,
+							width,
+							rows,
+							config.sectionExpansion,
+						);
+					},
+					(id) => toggleRailSection(ctx, id),
+				);
 				current.sidebar.setTopBar(
 					current.runtime.getConfig().panelPlacement === "top" ? current.railBar : undefined,
 				);

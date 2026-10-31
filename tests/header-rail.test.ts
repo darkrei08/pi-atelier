@@ -63,8 +63,26 @@ describe("top header rail", () => {
 		expect(lines.every((line) => visibleWidth(line) <= width)).toBe(true);
 	});
 
-	it("marks hidden sections when the row cap prevents rendering them", () => {
-		expect(render(40).at(-1)).toMatch(/… \+\d+$/);
+	it("marks hidden details when the row cap prevents rendering them", () => {
+		const lines = renderHeaderRail(snapshot, { ...DEFAULT_CONFIG, headerRailRows: 2 }, theme, 120, {});
+		expect(lines).toHaveLength(2);
+		expect(lines[1]).toMatch(/… \+\d+$/);
+	});
+
+	it("renders expanded details and omits them when collapsed", () => {
+		const expanded = renderHeaderRail(snapshot, { ...DEFAULT_CONFIG, headerRailRows: 4 }, theme, 120, {});
+		expect(expanded[0]).toContain("▾ AGENT");
+		expect(expanded.slice(1).join("\n")).toContain("AGENT Model: gpt-5.6-sol");
+		const collapsed = renderHeaderRail(snapshot, { ...DEFAULT_CONFIG, headerRailRows: 4 }, theme, 120, {
+			agent: false,
+		});
+		expect(collapsed.join("\n")).not.toContain("AGENT Model:");
+	});
+
+	it.each([76, 120])("keeps rows nonblank and within %i columns", (width) => {
+		const lines = renderHeaderRail(snapshot, { ...DEFAULT_CONFIG, headerRailRows: 4 }, theme, width, {});
+		expect(lines.every((line) => line.trim().length > 0)).toBe(true);
+		expect(lines.every((line) => visibleWidth(line) <= width)).toBe(true);
 	});
 
 	it("returns no rows for an empty snapshot", () => {
@@ -78,11 +96,11 @@ describe("top header rail", () => {
 		expect(renderHeaderRail(empty, DEFAULT_CONFIG, theme, 120, {})).toEqual([]);
 	});
 
-	it("renders the standard snapshot as a stable 120-column rail", () => {
-		expect(render(120)).toEqual([
-			"▾ AGENT gpt-5.6-sol · medium  ·  ▾ ACTIVITY running  ·  ▾ CONTEXT 8% · 32k/400k  ·  ▾ USAGE 50k/1.9k/100k",
-			"▾ TOOLS 8/12",
-		]);
+	it("shows workspace details in the standard 120-column rail", () => {
+		const lines = render(120);
+		expect(lines[0]).toContain("▾ WORKSPACE");
+		expect(lines[0]).toMatch(/… \+\d+$/);
+		expect(lines[1]).toContain("AGENT Model:");
 	});
 
 	it("leaves Activity and Context to the footer when placed at the top", () => {

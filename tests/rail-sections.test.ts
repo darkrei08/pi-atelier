@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildSidebarSnapshot } from "../src/sidebar.js";
-import { isSectionExpanded, sectionSummary, toggleSection } from "../src/rail-sections.js";
+import { isSectionExpanded, sectionDetailRows, sectionSummary, toggleSection } from "../src/rail-sections.js";
 import { EMPTY_RUN_ACTIVITY } from "../src/run-activity.js";
 import { createInertAtelierState } from "../src/state.js";
 
@@ -94,6 +94,42 @@ describe("rail section expansion", () => {
 		};
 		expect(sectionSummary(withRuns, "workflows")).toBe("2 runs · 3 agents");
 		expect(sectionSummary(snapshot, "unknown")).toBe("");
+	});
+
+	it("returns the sidebar-backed agent, context, workspace, todo, and usage details", () => {
+		expect(sectionDetailRows(snapshot, "agent")).toEqual([
+			"Model: gpt-test",
+			"Thinking: high",
+			"Billing: Metered",
+		]);
+		expect(sectionDetailRows(snapshot, "context")).toEqual(["Tokens / window: 25 / 100", "Percent: 25.0%"]);
+		expect(sectionDetailRows(snapshot, "workspace")).toEqual([
+			"Branch: feature/rail",
+			"Changed files: 3",
+			"Dirty: yes",
+		]);
+		expect(sectionDetailRows(snapshot, "todos")).toEqual(["✓: Done", "○: Next"]);
+		expect(sectionDetailRows(snapshot, "usage")).toEqual([
+			"Input: 12",
+			"Output: 8",
+			"Cache read: 4",
+			"Cost: $0.00",
+		]);
+	});
+
+	it("returns no details for an empty snapshot", () => {
+		const empty = buildSidebarSnapshot({
+			state: createInertAtelierState(null),
+			cwd: "/tmp/project",
+			branchEntryCount: 0,
+			activeToolCount: 0,
+			availableToolCount: 0,
+		});
+		expect(sectionDetailRows(empty, "agent")).toEqual([]);
+		expect(sectionDetailRows(empty, "context")).toEqual([]);
+		expect(sectionDetailRows(empty, "workspace")).toEqual([]);
+		expect(sectionDetailRows(empty, "todos")).toEqual([]);
+		expect(sectionDetailRows(empty, "usage")).toEqual([]);
 	});
 
 	it("counts alerts using plain text and ignores ANSI-only markup", () => {

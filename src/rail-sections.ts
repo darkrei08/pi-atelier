@@ -1,4 +1,5 @@
 import { formatTokens } from "./metrics.js";
+import { surfaceGlyphs } from "./glyphs.js";
 import { sanitizeInline } from "./text.js";
 import type { SidebarSnapshot } from "./sidebar.js";
 
@@ -17,6 +18,95 @@ export function toggleSection(
 }
 
 const ALERT_STATUS = /\b(error|failed?|failure|offline|unavailable|warn(?:ing)?|blocked|degraded)\b/i;
+
+export function sectionDetailRows(snapshot: SidebarSnapshot, id: string): string[] {
+	const metrics = snapshot.metrics;
+	const rows: string[] = [];
+	const add = (key: string, value: string | number | undefined | null) => {
+		if (value === undefined || value === null || value === "") return;
+		rows.push(`${key}: ${sanitizeInline(String(value))}`);
+	};
+
+	switch (id) {
+		case "agent":
+			add("Model", snapshot.modelId);
+			add("Provider", snapshot.provider);
+			add("Thinking", snapshot.thinkingLevel);
+			if (snapshot.modelId || snapshot.provider)
+				add("Billing", metrics.subscription ? "Subscription" : "Metered");
+			break;
+		case "context":
+			if (metrics.contextTokens !== null) {
+				add(
+					"Tokens / window",
+					`${formatTokens(metrics.contextTokens)} / ${formatTokens(metrics.contextWindow)}`,
+				);
+			}
+			if (metrics.contextPercent !== null) add("Percent", `${metrics.contextPercent.toFixed(1)}%`);
+			if (metrics.autoCompact !== null) add("Auto-compact", metrics.autoCompact ? "on" : "off");
+			break;
+		case "workspace": {
+			const pulse = snapshot.workspacePulse;
+			add("Branch", snapshot.branch);
+			if ("data" in pulse) {
+				const { trackedFiles, untrackedFiles } = pulse.data.snapshot;
+				add("Changed files", trackedFiles + untrackedFiles);
+				add("Dirty", pulse.status === "clean" ? "no" : "yes");
+			}
+			break;
+		}
+		case "usage":
+			if (metrics.usageAvailable) {
+				add("Input", formatTokens(metrics.input));
+				add("Output", formatTokens(metrics.output));
+				add("Cache read", formatTokens(metrics.cacheRead));
+			}
+			if (metrics.costAvailable) add("Cost", `$${Math.max(0, metrics.cost).toFixed(2)}`);
+			break;
+		case "todos": {
+			const glyphs = surfaceGlyphs("sidebar", true);
+			for (const todo of snapshot.todos.slice(0, 3)) {
+				const glyph =
+					todo.status === "completed"
+						? glyphs.todoCompleted
+						: todo.status === "in_progress"
+							? glyphs.todoInProgress
+							: glyphs.todoPending;
+				add(glyph, todo.text);
+			}
+			break;
+		}
+		case "workflows": {
+			const usage = snapshot.subagentUsage;
+			for (const run of usage?.runs ?? []) add(run.agent, "complete");
+			if (usage?.pending) add("Run phase", `running (${usage.pending})`);
+			break;
+		}
+		case "tools":
+			if (snapshot.availableToolCount > 0)
+				add("Active / available", `${snapshot.activeToolCount} / ${snapshot.availableToolCount}`);
+			break;
+		case "alerts":
+			for (const status of snapshot.extensionStatuses) {
+				const text = sanitizeInline(status);
+				if (ALERT_STATUS.test(text)) rows.push(text);
+			}
+			break;
+		case "activity":
+			if (snapshot.runActivity.phase !== "idle") add("Run phase", snapshot.runActivity.phase);
+			if (snapshot.runActivity.completedCount || snapshot.runActivity.failedCount) {
+				add(
+					"Tools",
+					`${snapshot.runActivity.completedCount} done · ${snapshot.runActivity.failedCount} failed`,
+				);
+			}
+			break;
+		case "subagents":
+			if (snapshot.subagentUsage) add("Runs", snapshot.subagentUsage.runs.length);
+			break;
+	}
+	return rows.filter(Boolean);
+}
 
 export function sectionSummary(snapshot: SidebarSnapshot, id: string): string {
 	let summary: string;

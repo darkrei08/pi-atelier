@@ -512,6 +512,36 @@ describe("Pi 0.84 split layout", () => {
 		expect((renderer as unknown as { layoutRoot: unknown }).layoutRoot).toBeInstanceOf(HStack);
 	});
 
+	it("routes a rail title click once through the fullscreen component", () => {
+		const renderer = new TuiAltScreen({ columns: 120, rows: 36, write: vi.fn() } as never);
+		const toggle = vi.fn();
+		const bar = createRailBar(() => ["▾ AGENT model"], toggle);
+		const split = disposeAfterTest(createSplitPaneController({ topBar: bar }));
+		renderer.setLayoutRoot({ render: () => ["transcript"], invalidate() {} });
+		split.attach(stableTuiReference(() => renderer));
+		const topRoot = (renderer as unknown as { layoutRoot: VStack }).layoutRoot;
+		topRoot.render(120);
+		const event = (type: "press" | "release" | "click") => ({
+			type,
+			button: "left" as const,
+			x: 4,
+			y: 0,
+			screenX: 4,
+			screenY: 0,
+			width: 120,
+			height: 2,
+			shift: false,
+			alt: false,
+			ctrl: false,
+		});
+		topRoot.handleMouse(event("press"));
+		topRoot.handleMouse(event("release"));
+		topRoot.handleMouse(event("click"));
+
+		expect(toggle).toHaveBeenCalledOnce();
+		expect(toggle).toHaveBeenCalledWith("agent");
+	});
+
 	it("restores the original fullscreen layout root on disposal", () => {
 		const renderer = new TuiAltScreen({ columns: 120, rows: 36, write: vi.fn() } as never);
 		const originalRoot = { render: (width: number) => [`main:${width}`], invalidate() {} };

@@ -1,4 +1,4 @@
-import type { Component, OverlayHandle, OverlayOptions, TUI } from "@earendil-works/pi-tui";
+import type { Component, OverlayHandle, OverlayOptions, TUI, TuiMouseEvent } from "@earendil-works/pi-tui";
 import {
 	compositeTuiLine,
 	HStack,
@@ -253,6 +253,9 @@ export function createSplitPaneController(options: SplitPaneControllerOptions = 
 				const nextLines = topBar.render(width);
 				if (nextLines.length !== lines) syncFullscreenLayoutAdapter();
 				return nextLines;
+			},
+			handleMouse(event: TuiMouseEvent) {
+				return topBar?.handleMouse?.(event);
 			},
 			invalidate() {
 				topBar?.invalidate?.();
