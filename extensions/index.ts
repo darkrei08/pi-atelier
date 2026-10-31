@@ -40,6 +40,7 @@ import { openSubagentUsage } from "../src/subagent-usage-view.js";
 import { errorMessage, isColorEnabled, isRecord } from "../src/text.js";
 import { reconstructTodos, todosFromDetails } from "../src/todos.js";
 import type { AtelierConfig, AtelierState, FooterState, NormalizedTodo } from "../src/types.js";
+import { applyWorkflowEvent, WORKFLOW_EVENT_CHANNELS, type WorkflowRuns } from "../src/workflow-runs.js";
 
 // Public sidebar contribution protocol for other extensions.
 export type {
@@ -109,11 +110,13 @@ interface ActiveSession {
 	/** Whether Atelier owns Pi's footer and composer; when false, they belong to Pi or another extension. */
 	footerInstalled: boolean;
 	unsubscribeAskUserBlocked: (() => void) | undefined;
+	unsubscribeWorkflowEvents: (() => void) | undefined;
 	askUserBlocked: boolean;
 	inputRequestSequence: number;
 	todos: NormalizedTodo[];
 	requestFooterRender: () => void;
 	extensionStatuses: readonly string[];
+	workflowRuns: WorkflowRuns;
 }
 
 interface LifecycleToken {
@@ -212,6 +215,7 @@ export default function atelierExtension(
 				branchEntryCount: 0,
 				activeToolCount: 0,
 				availableToolCount: 0,
+				workflows: [],
 			});
 		}
 		const { ctx, panelRegistry, runActivity, runtime } = targetSession;
@@ -229,6 +233,7 @@ export default function atelierExtension(
 			activeToolNames: activeTools,
 			runActivity: runActivity.getSnapshot(),
 			todos: targetSession.todos,
+			workflows: [...targetSession.workflowRuns.values()],
 			sidebarPanels: panelRegistry.getAvailable(),
 		});
 	}
@@ -277,6 +282,7 @@ export default function atelierExtension(
 	function disposeSession(session: ActiveSession, options: { clearFooter?: boolean } = {}): void {
 		session.todos = [];
 		session.extensionStatuses = [];
+		session.workflowRuns.clear();
 		session.askUserBlocked = false;
 		session.inputRequestSequence = 0;
 		session.requestFooterRender = noopRender;
@@ -291,6 +297,9 @@ export default function atelierExtension(
 		const unsubscribe = session.unsubscribeAskUserBlocked;
 		session.unsubscribeAskUserBlocked = undefined;
 		if (unsubscribe) attempt(unsubscribe);
+		const unsubscribeWorkflowEvents = session.unsubscribeWorkflowEvents;
+		session.unsubscribeWorkflowEvents = undefined;
+		if (unsubscribeWorkflowEvents) attempt(unsubscribeWorkflowEvents);
 	}
 
 	function teardownActiveSession(ctx?: ExtensionContext): void {
@@ -706,6 +715,20 @@ export default function atelierExtension(
 			const current = activeSession;
 			if (current?.token === token) requestAllRenders(current);
 		};
+		const workflowRuns: WorkflowRuns = new Map();
+		const workflowUnsubscribes = WORKFLOW_EVENT_CHANNELS.map((channel) =>
+			pi.events.on(channel, (payload) => {
+				if (!isPublished()) return;
+				if (applyWorkflowEvent(workflowRuns, channel, payload, ctx.sessionManager.getSessionId())) {
+					requestRenders();
+				}
+			}),
+		);
+		const unsubscribeWorkflowEvents = (): void => {
+			for (const unsubscribe of workflowUnsubscribes) unsubscribe();
+			workflowRuns.clear();
+		};
+		cleanup.push(unsubscribeWorkflowEvents);
 		const runActivity = createRunActivityTracker({ cwd: ctx.cwd, onChange: requestRenders });
 		cleanup.push(() => runActivity.reset());
 		let autoCompact: boolean | null = null;
@@ -781,11 +804,13 @@ export default function atelierExtension(
 			footerGeneration: 0,
 			footerInstalled: false,
 			unsubscribeAskUserBlocked: undefined,
+			unsubscribeWorkflowEvents,
 			askUserBlocked: false,
 			inputRequestSequence: 0,
 			todos: enabled ? reconstructTodos(ctx) : [],
 			requestFooterRender: noopRender,
 			extensionStatuses: [],
+			workflowRuns,
 		};
 	}
 
@@ -928,7 +953,7 @@ export default function atelierExtension(
 		const current = getActiveSession(ctx);
 		if (!current || !ctx.isIdle()) return;
 		current.runActivity.settle();
-		current.runtime.setActivity("ready");
+		current.runtime.setActivity("completed");
 		if (!enabled) return;
 		current.sidebar.requestRender();
 		if (current.runtime.getConfig().completionNotifications) {

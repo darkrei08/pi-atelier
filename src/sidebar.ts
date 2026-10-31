@@ -6,7 +6,13 @@ import { displayHomePath } from "./display-path.js";
 import { contextRole } from "./footer.js";
 import { hasCapturingOverlay } from "./image-compositor.js";
 import { formatTokens } from "./metrics.js";
-import { type AtelierPalette, createPalette, type PaletteRole, type ThemeLike } from "./palette.js";
+import {
+	activityRole,
+	type AtelierPalette,
+	createPalette,
+	type PaletteRole,
+	type ThemeLike,
+} from "./palette.js";
 import {
 	EMPTY_RUN_ACTIVITY,
 	formatDuration,
@@ -27,6 +33,7 @@ import type {
 	WorkspacePulseState,
 } from "./types.js";
 import type { WorkspacePulseData } from "./workspace-pulse.js";
+import { runningAgentCount, type WorkflowRunStatus } from "./workflow-runs.js";
 
 export interface SidebarSnapshotInput {
 	state: AtelierState;
@@ -39,6 +46,7 @@ export interface SidebarSnapshotInput {
 	activeToolNames?: readonly string[];
 	runActivity?: RunActivitySnapshot;
 	todos?: readonly NormalizedTodo[];
+	workflows?: readonly WorkflowRunStatus[];
 	sidebarPanels?: readonly SidebarPanelData[];
 }
 
@@ -53,6 +61,7 @@ export interface SidebarSnapshot extends AtelierState {
 	activeToolNames: readonly string[];
 	runActivity: RunActivitySnapshot;
 	todos: readonly NormalizedTodo[];
+	workflows: readonly WorkflowRunStatus[];
 	sidebarPanels: readonly SidebarPanelData[];
 }
 
@@ -77,6 +86,7 @@ export function buildSidebarSnapshot(input: SidebarSnapshotInput): SidebarSnapsh
 		),
 		runActivity: input.runActivity ?? EMPTY_RUN_ACTIVITY,
 		todos: input.todos ?? [],
+		workflows: input.workflows ?? [],
 		sidebarPanels: input.sidebarPanels ?? [],
 	};
 }
@@ -161,11 +171,17 @@ function agentRows(
 	theme: ThemeLike,
 ): string[] {
 	const working = snapshot.activity === "working";
-	const label = working ? "Working" : "Ready";
+	const completed = snapshot.activity === "completed";
+	const label = working ? "Working" : completed ? "Complete" : "Ready";
 	const phrase = working && snapshot.workingLabel ? ` · ${sanitizeInline(snapshot.workingLabel)}` : "";
 	const knownModel = Boolean(snapshot.modelId || snapshot.provider);
 	return [
-		theme.bold(palette.paint(snapshot.activity, `${working ? "◆" : "●"} ${label}${phrase}`)),
+		theme.bold(
+			palette.paint(
+				activityRole(snapshot.activity),
+				`${working ? "◆" : completed ? "✓" : "●"} ${label}${phrase}`,
+			),
+		),
 		theme.bold(valueRow(snapshot.modelId, palette, "primary")),
 		valueRow(snapshot.provider, palette, "muted"),
 		labeledRow(
@@ -384,6 +400,22 @@ function todosRows(snapshot: SidebarSnapshot, palette: AtelierPalette): string[]
 	];
 }
 
+/** PiWorkflow runs in this session, one row each; the panel hides itself when nothing runs. */
+function workflowRows(snapshot: SidebarSnapshot, width: number, palette: AtelierPalette): string[] {
+	return snapshot.workflows.slice(0, 3).map((run) => {
+		const phase = run.phase
+			? ` ${palette.paint("dim", "·")} ${palette.paint("muted", sanitizeInline(run.phase))}`
+			: "";
+		const agents = runningAgentCount(run);
+		const running =
+			agents > 0
+				? ` ${palette.paint("dim", "·")} ${palette.paint("muted", `${agents} ${agents === 1 ? "agent" : "agents"}`)}`
+				: "";
+		const name = palette.paint("primary", sanitizeInline(run.name));
+		return truncateToWidth(`${palette.paint("accent", "◐")} ${name}${phase}${running}`, width, "");
+	});
+}
+
 const ERROR_STATUS = /\b(error|failed?|failure|offline|unavailable)\b/i;
 const WARNING_STATUS = /\b(warn(?:ing)?|blocked|degraded)\b/i;
 
@@ -518,6 +550,7 @@ const DROP_RANK = {
 	location: 5,
 	pulseDetails: 6,
 	toolsStatus: 10,
+	workflows: 12,
 	subagents: 18,
 	usage: 20,
 	contributed: 25,
@@ -707,7 +740,7 @@ export function renderSidebarLines(
 				panel: {
 					id: "agent",
 					title: "AGENT",
-					role: snapshot.activity,
+					role: activityRole(snapshot.activity),
 					jewel:
 						snapshot.activity === "working" && Math.floor(now / SIDEBAR_ANIMATION_INTERVAL_MS) % 2 === 1
 							? "✧"
@@ -741,6 +774,14 @@ export function renderSidebarLines(
 				panel: { id: "todos", title: "TODOS", role: "accent" },
 				rows: todosRows(snapshot, palette),
 				dropRank: DROP_RANK.todos,
+			},
+		],
+		workflows: () => [
+			{
+				name: "workflows",
+				panel: { id: "workflows", title: "WORKFLOWS", role: "accent" },
+				rows: workflowRows(snapshot, panelWidth, palette),
+				dropRank: DROP_RANK.workflows,
 			},
 		],
 		context: () => [

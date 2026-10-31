@@ -2,6 +2,7 @@ import { plainTheme } from "./helpers/render.js";
 import { describe, expect, it, vi } from "vitest";
 import { initTheme } from "@earendil-works/pi-coding-agent";
 import { SIDEBAR_PANEL_EVENT_CHANNEL } from "../extensions/index.js";
+import { WORKFLOW_EVENT_CHANNELS } from "../src/workflow-runs.js";
 
 import { loadConfig as loadAtelierConfig, saveUserConfigPatch as persistConfigPatch } from "../src/config.js";
 import { deferred, settleMicrotasks } from "./helpers/async.js";
@@ -21,6 +22,30 @@ import {
 } from "./helpers/extension.js";
 
 describe("extension session", () => {
+	it("renders active workflows from session-scoped PiWorkflow events", async () => {
+		const h = harness();
+		await start(h);
+		await command(h, "sidebar on");
+		const sessionId = h.ctx.sessionManager.getSessionId();
+		h.pi.events.emit("workflow:run-started", { sessionId, runId: "workflow-1", workflowName: "Deploy" });
+		h.pi.events.emit("workflow:phase-changed", { sessionId, runId: "workflow-1", phase: "build" });
+		h.pi.events.emit("workflow:agent-state-changed", {
+			sessionId,
+			runId: "workflow-1",
+			agentId: "agent-1",
+			state: "running",
+		});
+
+		const sidebar = renderOverlayText(h);
+		expect(sidebar).toContain("WORKFLOWS");
+		expect(sidebar).toContain("◐ Deploy · build · 1 agent");
+		for (const channel of WORKFLOW_EVENT_CHANNELS) expect(h.getEventBusHandlerCount(channel)).toBe(1);
+
+		const printContext = { ...replacementContext(h.ctx, "Print session"), mode: "print" as const };
+		await start(h, printContext);
+		for (const channel of WORKFLOW_EVENT_CHANNELS) expect(h.getEventBusHandlerCount(channel)).toBe(0);
+	});
+
 	it("moves session identity back to the footer while a selector replaces the editor", async () => {
 		const h = harness();
 		await start(h);
@@ -943,7 +968,7 @@ describe("extension session", () => {
 			expect(settledText).not.toContain("Turn 7");
 			expect(settledText).not.toContain("settled");
 			expect(settledText).toContain("✓ bash");
-			expect(settledText).toContain("Ready");
+			expect(settledText).toContain("✓ Complete");
 			expect(settledText).not.toContain("stale.ts");
 		} finally {
 			vi.useRealTimers();

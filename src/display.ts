@@ -16,6 +16,7 @@ export const PRODUCT_SEGMENT_ORDER = [
 	"context",
 	"model",
 	"git",
+	"session",
 	"statuses",
 	"menu",
 ] as const;
@@ -46,7 +47,7 @@ const layout = (visible: readonly SegmentId[]): SegmentLayout => {
 export const DISPLAY_TEMPLATES: Record<TemplateName, Omit<DisplaySettings, "preset">> = {
 	editorial: {
 		density: "comfortable",
-		segmentLayout: layout(["activity", "metrics", "context", "model", "git", "statuses", "menu"]),
+		segmentLayout: layout(["activity", "metrics", "context", "model", "git", "session", "statuses", "menu"]),
 	},
 	minimal: {
 		density: "compact",
@@ -54,7 +55,7 @@ export const DISPLAY_TEMPLATES: Record<TemplateName, Omit<DisplaySettings, "pres
 	},
 	classic: {
 		density: "comfortable",
-		segmentLayout: layout(["metrics", "context", "model", "git", "statuses"]),
+		segmentLayout: layout(["metrics", "context", "model", "git", "session", "statuses"]),
 	},
 };
 

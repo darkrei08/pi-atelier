@@ -87,6 +87,7 @@ Open `/atelier` or press **F6** to change display settings, control the sidebar,
 - A confirmed resize is saved as `sidebarWidth` and becomes the starting width for new sessions. Escape keeps the saved width.
 - Mode and visibility are session-scoped. The startup visibility preference is set in Settings.
 - The TODO panel supports Pi `todo` results and the optional `@juicesharp/rpiv-todo` extension. Hidden TODO results keep their full output.
+- The WORKFLOWS panel shows active PiWorkflow runs with their current phase and running agent count; it stays hidden when no runs are active. Reorder or hide it in **Settings → Display**.
 
 ### Status rail presets
 
@@ -95,6 +96,8 @@ Open `/atelier` or press **F6** to change display settings, control the sidebar,
 | **editorial** | Default layout |
 | **minimal** | Compact layout |
 | **classic** | Detailed telemetry |
+
+The optional **session** status rail segment shows the current session ID, shortened to eight characters when needed. It is included in the editorial and classic layouts and can be reordered or hidden in **Settings → Display**.
 
 Pi supports one custom footer and one custom editor at a time. Extension load order decides which one is visible. To keep another extension's footer and use only the Atelier sidebar, choose **Settings → Atelier footer → Off** or set `"showFooter": false`. This also leaves Pi's composer unchanged. The sidebar does not show extension statuses while the Atelier footer is off.
 

@@ -475,8 +475,27 @@ describe("footer", () => {
 			namedTheme("dark"),
 			180,
 		);
+		const completed = renderFooterLine(
+			{ ...state, activity: "completed" },
+			{ ...DEFAULT_CONFIG, nerdFont: false },
+			namedTheme("dark"),
+			180,
+		);
 		expect(ready).toContain(`${darkRgb.blue}● READY\u001b[39m`);
 		expect(working).toContain(`${darkRgb.amber}● PONDERING...\u001b[39m`);
+		expect(completed).toContain("✓ COMPLETED");
+		expect(completed).toContain("\u001b[38;2;74;222;128m✓ COMPLETED\u001b[39m");
+	});
+
+	it("renders the session segment with a truncated ID or a placeholder", () => {
+		const config = withVisible(["session"]);
+		const session = stripAnsi(
+			renderFooterLine({ ...state, sessionId: "12345678-extra" }, config, plainTheme, 160),
+		);
+		const missing = stripAnsi(renderFooterLine(state, config, plainTheme, 160));
+
+		expect(session).toContain("session 12345678…");
+		expect(missing).toContain("session —");
 	});
 
 	it("overrides context blue at warning and danger thresholds", () => {

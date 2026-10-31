@@ -1,7 +1,13 @@
 import { type Component, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { DEFAULT_CONFIG } from "./config.js";
 import { formatTokens } from "./metrics.js";
-import { type AtelierPalette, createPalette, type PaletteRole, type ThemeLike } from "./palette.js";
+import {
+	activityRole,
+	type AtelierPalette,
+	createPalette,
+	type PaletteRole,
+	type ThemeLike,
+} from "./palette.js";
 import { responsePerformanceValues } from "./run-activity.js";
 import { PLACEHOLDER, sanitizeInline } from "./text.js";
 import type {
@@ -61,6 +67,7 @@ type FooterItemId =
 	| "thinking"
 	| "workspace"
 	| "git"
+	| "session"
 	| "input"
 	| "output"
 	| "performance"
@@ -92,6 +99,8 @@ const ITEM_META: Record<
 	thinking: { zone: "left", group: "model", dropRank: 10, header: true },
 	workspace: { zone: "left", group: "workspace", dropRank: 50, header: true },
 	git: { zone: "left", group: "workspace", dropRank: 55, header: true },
+	// The session ID gives up its place before contributed extension statuses do.
+	session: { zone: "right", group: "session", dropRank: 0, header: false },
 	input: { zone: "right", group: "usage", dropRank: 40, header: false },
 	output: { zone: "right", group: "usage", dropRank: 40, header: false },
 	cache: { zone: "right", group: "usage", dropRank: 50, header: false },
@@ -150,7 +159,8 @@ function activityText(
 	const label = state.activity === "working" && !compact ? (state.workingLabel ?? fallback) : fallback;
 	const dots =
 		state.activity === "working" && !compact ? workingDots.padEnd(WORKING_DOT_FRAMES[0].length, " ") : "";
-	return palette.paint(state.activity, theme.bold(`${nerdFont ? "● " : ""}${sanitizeInline(label)}${dots}`));
+	const marker = state.activity === "completed" ? "✓ " : nerdFont ? "● " : "";
+	return palette.paint(activityRole(state.activity), theme.bold(`${marker}${sanitizeInline(label)}${dots}`));
 }
 
 interface ItemContext {
@@ -211,6 +221,13 @@ const SEGMENT_ITEMS: Record<SegmentId, (context: ItemContext) => FooterItem[]> =
 			items.push(item("git", paint(branch), paint(truncateToWidth(branch, 18, "…"))));
 		}
 		return items;
+	},
+	session: ({ state, palette }) => {
+		const id = state.sessionId ? sanitizeInline(state.sessionId) : "";
+		const value = id ? truncateToWidth(id, 9, "…") : PLACEHOLDER;
+		return [
+			item("session", `${palette.paint("muted", "session")} ${palette.paint(id ? "muted" : "dim", value)}`),
+		];
 	},
 	statuses: ({ state, palette }) => {
 		const statuses = state.extensionStatuses.map(sanitizeInline).filter(Boolean).join(" ");

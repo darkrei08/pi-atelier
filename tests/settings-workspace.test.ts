@@ -92,8 +92,8 @@ describe("Display Settings Workspace", () => {
 		expect(text(h.component)).toContain("Queue");
 		expect(text(h.component)).toContain("Missing  unavailable");
 
-		// Two display rows, nine segments, and three actions precede the configured layout.
-		for (let index = 0; index < 14 + configuredLayout.length; index += 1) h.component.handleInput("\u001b[B");
+		// Two display rows, ten segments, and three actions precede the configured layout.
+		for (let index = 0; index < 15 + configuredLayout.length; index += 1) h.component.handleInput("\u001b[B");
 		h.component.handleInput(" ");
 		h.component.handleInput("s");
 		expect(h.persist).toHaveBeenCalled();

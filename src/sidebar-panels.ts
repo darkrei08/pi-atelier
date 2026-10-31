@@ -44,6 +44,7 @@ export const BUILTIN_SIDEBAR_PANEL_IDS = [
 	"activity",
 	"alerts",
 	"todos",
+	"workflows",
 	"context",
 	"workspace",
 	"usage",
