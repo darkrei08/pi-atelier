@@ -5,6 +5,9 @@ import type { SectionExpansion } from "./rail-sections.js";
 import type { SidebarSnapshot } from "./sidebar.js";
 import type { AtelierConfig } from "./types.js";
 
+export const RAIL_BAR_MIN_WIDTH = 64;
+export const RAIL_BAR_MIN_ROWS = 20;
+
 export function railBarLines(
 	snapshot: SidebarSnapshot,
 	config: AtelierConfig,
@@ -13,7 +16,7 @@ export function railBarLines(
 	rows: number,
 	expansion: SectionExpansion,
 ): string[] {
-	if (width < 64 || rows < 20) return [];
+	if (width < RAIL_BAR_MIN_WIDTH || rows < RAIL_BAR_MIN_ROWS) return [];
 	const lines = renderHeaderRail(snapshot, config, theme, width, expansion);
 	const maxRows = rows < 24 ? 1 : config.headerRailRows;
 	return lines.filter(Boolean).slice(0, maxRows);

@@ -567,6 +567,7 @@ export default function atelierExtension(
 					};
 				},
 				getConfig: () => getCurrentSession()?.runtime.getConfig() ?? retiredConfig,
+				getRows: () => tui.terminal?.rows ?? 0,
 				colorEnabled: isColorEnabled(),
 				requestRender: footerRequestRender,
 				onBranchChange: (callback) =>

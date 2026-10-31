@@ -123,6 +123,7 @@ function createFooter(options: Partial<Parameters<typeof createFooterComponent>[
 		createFooterComponent({
 			getState: () => state,
 			getConfig: () => DEFAULT_CONFIG,
+			getRows: () => Number.POSITIVE_INFINITY,
 			requestRender: vi.fn(),
 			onBranchChange: () => vi.fn(),
 			theme: plainTheme,
@@ -331,19 +332,45 @@ describe("footer", () => {
 		expect(visibleWidth(line)).toBe(160);
 	});
 
-	it("keeps model and Git out of the footer only when the rail is at the top", () => {
+	it("keeps model and Git out of the footer only while the top rail is rendered", () => {
 		const config = withVisible(["activity", "metrics", "context", "model", "git", "statuses", "menu"], {
 			panelPlacement: "top",
 		});
 		const ownedState = { ...state, workspaceLabel: "pi-atelier", extensionStatuses: ["INDEXING"] };
-		const top = stripAnsi(renderFooterLine(ownedState, config, plainTheme, 400));
-		for (const text of ["● READY", `${icons.context} 27.0%`, `${icons.input} 324k`, "INDEXING", "F6"])
+		const renderAt = (width: number, rows: number, placement: "top" | "right" = "top") =>
+			stripAnsi(
+				renderFooterLine(ownedState, { ...config, panelPlacement: placement }, plainTheme, width, { rows }),
+			);
+		const modelAndGit = ["gpt-5.6-sol", "main*"];
+		const identityConfig = withVisible(["model", "git"], { panelPlacement: "top" });
+		const renderIdentityAt = (width: number, rows: number, placement: "top" | "right" = "top") =>
+			stripAnsi(
+				renderFooterLine(state, { ...identityConfig, panelPlacement: placement }, plainTheme, width, {
+					rows,
+				}),
+			);
+		for (const [width, rows] of [
+			[40, 40],
+			[76, 10],
+			[40, 10],
+		] as const) {
+			const footer = renderIdentityAt(width, rows);
+			for (const text of modelAndGit) expect(footer).toContain(text);
+		}
+		const top = renderAt(76, 40);
+		for (const text of ["● READY", `${icons.context} 27.0%`, `${icons.input} 324k`, "F6"])
 			expect(top).toContain(text);
 		for (const text of ["gpt-5.6-sol", "medium", "pi-atelier", "main*"]) expect(top).not.toContain(text);
 
-		const right = stripAnsi(
-			renderFooterLine(ownedState, { ...config, panelPlacement: "right" }, plainTheme, 400),
-		);
+		for (const [width, rows] of [
+			[40, 40],
+			[76, 40],
+			[76, 10],
+		] as const) {
+			const right = renderIdentityAt(width, rows, "right");
+			for (const text of modelAndGit) expect(right).toContain(text);
+		}
+		const right = renderAt(400, 40, "right");
 		for (const text of [
 			"● READY",
 			`${icons.model} gpt-5.6-sol · ${icons.thinking} medium`,

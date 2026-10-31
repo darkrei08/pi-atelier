@@ -4,6 +4,7 @@ import { formatTokens } from "./metrics.js";
 import { surfaceGlyphs } from "./glyphs.js";
 import { type AtelierPalette, createPalette, type PaletteRole, type ThemeLike } from "./palette.js";
 import { responsePerformanceValues } from "./run-activity.js";
+import { RAIL_BAR_MIN_ROWS, RAIL_BAR_MIN_WIDTH } from "./rail-bar.js";
 import { PLACEHOLDER, sanitizeInline } from "./text.js";
 import type {
 	AtelierConfig,
@@ -102,8 +103,11 @@ const ITEM_META: Record<
 	menu: { zone: "right", group: "menu", dropRank: 0, header: false },
 };
 
-// Model and Git are owned by the top rail when panelPlacement is top.
 const RAIL_OWNED_SEGMENTS = new Set<SegmentId>(["model", "git"]);
+
+function railOwnsSegments(config: AtelierConfig, width: number, rows: number): boolean {
+	return config.panelPlacement === "top" && width >= RAIL_BAR_MIN_WIDTH && rows >= RAIL_BAR_MIN_ROWS;
+}
 
 const isRequired = (item: FooterItem): boolean => ITEM_META[item.id].dropRank === Number.POSITIVE_INFINITY;
 
@@ -310,13 +314,11 @@ const SEGMENT_ITEMS: Record<SegmentId, (context: ItemContext) => FooterItem[]> =
 	},
 };
 
-function buildItems(context: ItemContext): FooterItem[] {
+function buildItems(context: ItemContext, width: number, rows: number): FooterItem[] {
 	const compactDensity = context.config.density === "compact";
+	const railOwns = railOwnsSegments(context.config, width, rows);
 	return context.config.segmentLayout
-		.filter(
-			(entry) =>
-				entry.visible && !(context.config.panelPlacement === "top" && RAIL_OWNED_SEGMENTS.has(entry.id)),
-		)
+		.filter((entry) => entry.visible && !(railOwns && RAIL_OWNED_SEGMENTS.has(entry.id)))
 		.flatMap((entry) => SEGMENT_ITEMS[entry.id](context))
 		.map((footerItem) => (compactDensity ? { ...footerItem, full: footerItem.compact } : footerItem));
 }
@@ -419,6 +421,8 @@ export interface FooterRenderOptions {
 	colorEnabled?: boolean;
 	workingDots?: string;
 	surface?: FooterSurface;
+	/** Terminal rows for rail ownership; direct render calls default to an unbounded height. */
+	rows?: number;
 }
 
 interface RenderedFooter {
@@ -432,13 +436,18 @@ function renderFooter(
 	config: AtelierConfig,
 	theme: ThemeLike,
 	width: number,
-	{ colorEnabled = true, workingDots = WORKING_DOT_FRAMES[0], surface = "all" }: FooterRenderOptions,
+	{
+		colorEnabled = true,
+		workingDots = WORKING_DOT_FRAMES[0],
+		surface = "all",
+		rows = Number.POSITIVE_INFINITY,
+	}: FooterRenderOptions,
 ): RenderedFooter {
 	if (width <= 0) return { line: "", workingActivity: undefined };
 	const palette = createPalette(theme, colorEnabled);
 	const symbols = config.nerdFont ? FOOTER_ICONS : PLAIN_SYMBOLS;
 	const glyphs = surfaceGlyphs("footer", config.nerdFont);
-	const items = buildItems({ state, config, theme, palette, symbols, workingDots, glyphs });
+	const items = buildItems({ state, config, theme, palette, symbols, workingDots, glyphs }, width, rows);
 	const workingActivity =
 		state.activity === "working" && config.density !== "compact"
 			? items.find((footerItem) => footerItem.id === "activity")?.full
@@ -488,6 +497,7 @@ export function renderFooterLine(
 export interface FooterComponentOptions {
 	getState(): FooterState;
 	getConfig(): AtelierConfig;
+	getRows(): number;
 	colorEnabled?: boolean;
 	requestRender(): void;
 	onBranchChange(callback: () => void): () => void;
@@ -537,6 +547,7 @@ export function createFooterComponent(options: FooterComponentOptions): AtelierF
 				colorEnabled: options.colorEnabled ?? true,
 				workingDots: WORKING_DOT_FRAMES[frameIndex] ?? WORKING_DOT_FRAMES[0],
 				surface,
+				rows: options.getRows(),
 			},
 		);
 		// Animate only while the full working label is on screen; the telemetry row never shows it.
