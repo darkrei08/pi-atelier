@@ -6,6 +6,7 @@
 - Prefill numbers count uncached tokens, because a cached prefix is not work the user is waiting for. The percent rides the bar, and the speed rides the `First token` row (`~4s · 3.4k tok/s`), taking its own row while no estimate is available. The speed is measured between progress chunks, and the first sample seeds its base with the cached prefix, so a warm prompt does not show a false speed.
 - Prefill asks only `openai-completions` providers on the allow-list, and only when the request body names the allow-listed model, so a Pi virtual model or a redirected request is left alone. A chunk listener exists only while such a request is in flight. A provider that cannot report progress simply never draws the panel, and no request error turns the feature off for the rest of the session: llama.cpp answers 400 when a prompt exceeds its context size, which says nothing about the progress field.
 - A Sidebar layout saved before Prefill existed gains the Prefill panel next to Context instead of at the bottom. A built-in panel that a saved layout predates joins the built-in beside it, and contributed panels keep the position you gave them.
+- Keep a red `× ERROR` activity state when a run ends in a provider error instead of resetting to ready. Tool failures and user aborts still settle to ready.
 
 ## 0.17.0 — 2026-10-29
 

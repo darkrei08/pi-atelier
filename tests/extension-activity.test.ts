@@ -10,6 +10,7 @@ import {
 	renderOverlayText,
 	queueWorkspacePulseInspection,
 	execResult,
+	mountComposer,
 } from "./helpers/extension.js";
 
 describe("extension activity", () => {
@@ -343,5 +344,55 @@ describe("extension activity", () => {
 		expect(text).toContain("Working");
 		expect(text).toContain("ACTIVITY");
 		expect(text).toContain("Turn 1");
+	});
+
+	describe("provider error state", () => {
+		const providerError = {
+			type: "turn_end",
+			message: { role: "assistant", stopReason: "error" },
+			toolResults: [],
+		};
+
+		async function settledStatus(h: ReturnType<typeof harness>, turnEnd: unknown): Promise<string> {
+			await h.dispatch("agent_start", { type: "agent_start" });
+			await h.dispatch("turn_end", turnEnd);
+			await h.dispatch("agent_settled", { type: "agent_settled" });
+			const { editor, footer } = mountComposer(h);
+			try {
+				return editor.render(80)[0] ?? "";
+			} finally {
+				footer.dispose();
+			}
+		}
+
+		it("keeps the error state after a run ends in a provider error", async () => {
+			const h = harness();
+			await start(h);
+
+			expect(await settledStatus(h, providerError)).toContain("× ERROR");
+			expect(await settledStatus(h, { type: "turn_end" })).toContain("● READY");
+		});
+
+		it("settles to ready when the user aborted the run", async () => {
+			const h = harness();
+			await start(h);
+			const controller = new AbortController();
+			controller.abort();
+			Object.assign(h.ctx, { signal: controller.signal });
+
+			expect(await settledStatus(h, providerError)).toContain("● READY");
+		});
+
+		it("settles to ready after a recovered tool failure", async () => {
+			const h = harness();
+			await start(h);
+
+			const status = await settledStatus(h, {
+				type: "turn_end",
+				message: { role: "assistant", stopReason: "stop" },
+				toolResults: [{ isError: true }],
+			});
+			expect(status).toContain("● READY");
+		});
 	});
 });

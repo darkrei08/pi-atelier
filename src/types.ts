@@ -7,7 +7,7 @@ import type { WorkspacePulseData } from "./workspace-pulse.js";
 export type { PrefillView };
 export type TemplateName = (typeof TEMPLATE_NAMES)[number];
 export type PresetName = TemplateName | "custom";
-export type ActivityState = "ready" | "working";
+export type ActivityState = "ready" | "working" | "error";
 export type SegmentId = (typeof PRODUCT_SEGMENT_ORDER)[number];
 export type Density = (typeof DENSITIES)[number];
 export type BuiltinSidebarPanelId = (typeof BUILTIN_SIDEBAR_PANEL_IDS)[number];
