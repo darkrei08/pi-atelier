@@ -18,6 +18,8 @@ const SECTION_ROLES: Partial<Record<BuiltinSidebarPanelId, PaletteRole>> = {
 	tools: "chartPink",
 };
 const SEPARATOR = "  ·  ";
+// Activity and Context remain owned by the footer when the rail is on top.
+const FOOTER_OWNED_SECTIONS = new Set<BuiltinSidebarPanelId>(["activity", "context"]);
 
 export function renderHeaderRail(
 	snapshot: SidebarSnapshot,
@@ -31,7 +33,12 @@ export function renderHeaderRail(
 	if (safeWidth === 0) return [];
 	const palette = createPalette(theme, isColorEnabled());
 	const sections = config.sidebarPanelLayout.flatMap(({ id, visible }) => {
-		if (!visible || !isBuiltinSidebarPanelId(id)) return [];
+		if (
+			!visible ||
+			!isBuiltinSidebarPanelId(id) ||
+			(config.panelPlacement === "top" && FOOTER_OWNED_SECTIONS.has(id))
+		)
+			return [];
 		const role = SECTION_ROLES[id];
 		if (!role) return [];
 		const expanded = isSectionExpanded(expansion, id);

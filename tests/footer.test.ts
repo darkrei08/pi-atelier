@@ -331,6 +331,31 @@ describe("footer", () => {
 		expect(visibleWidth(line)).toBe(160);
 	});
 
+	it("keeps model and Git out of the footer only when the rail is at the top", () => {
+		const config = withVisible(["activity", "metrics", "context", "model", "git", "statuses", "menu"], {
+			panelPlacement: "top",
+		});
+		const ownedState = { ...state, workspaceLabel: "pi-atelier", extensionStatuses: ["INDEXING"] };
+		const top = stripAnsi(renderFooterLine(ownedState, config, plainTheme, 400));
+		for (const text of ["● READY", `${icons.context} 27.0%`, `${icons.input} 324k`, "INDEXING", "F6"])
+			expect(top).toContain(text);
+		for (const text of ["gpt-5.6-sol", "medium", "pi-atelier", "main*"]) expect(top).not.toContain(text);
+
+		const right = stripAnsi(
+			renderFooterLine(ownedState, { ...config, panelPlacement: "right" }, plainTheme, 400),
+		);
+		for (const text of [
+			"● READY",
+			`${icons.model} gpt-5.6-sol · ${icons.thinking} medium`,
+			`${icons.workspace} pi-atelier · ${icons.git} main*`,
+			`${icons.context} 27.0%`,
+			`${icons.input} 324k`,
+			"INDEXING",
+			"F6",
+		])
+			expect(right).toContain(text);
+	});
+
 	it("right-aligns telemetry in the complete footer", () => {
 		const line = stripAnsi(renderFooterLine(state, DEFAULT_CONFIG, plainTheme, 180));
 		expect(line.endsWith("F6")).toBe(true);

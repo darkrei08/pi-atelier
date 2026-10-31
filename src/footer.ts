@@ -101,6 +101,9 @@ const ITEM_META: Record<
 	menu: { zone: "right", group: "menu", dropRank: 0, header: false },
 };
 
+// Model and Git are owned by the top rail when panelPlacement is top.
+const RAIL_OWNED_SEGMENTS = new Set<SegmentId>(["model", "git"]);
+
 const isRequired = (item: FooterItem): boolean => ITEM_META[item.id].dropRank === Number.POSITIVE_INFINITY;
 
 function paintValue(value: DisplayValue, role: PaletteRole, palette: AtelierPalette): string {
@@ -298,7 +301,10 @@ const SEGMENT_ITEMS: Record<SegmentId, (context: ItemContext) => FooterItem[]> =
 function buildItems(context: ItemContext): FooterItem[] {
 	const compactDensity = context.config.density === "compact";
 	return context.config.segmentLayout
-		.filter((entry) => entry.visible)
+		.filter(
+			(entry) =>
+				entry.visible && !(context.config.panelPlacement === "top" && RAIL_OWNED_SEGMENTS.has(entry.id)),
+		)
 		.flatMap((entry) => SEGMENT_ITEMS[entry.id](context))
 		.map((footerItem) => (compactDensity ? { ...footerItem, full: footerItem.compact } : footerItem));
 }

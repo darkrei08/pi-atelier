@@ -85,6 +85,28 @@ describe("top header rail", () => {
 		]);
 	});
 
+	it("leaves Activity and Context to the footer when placed at the top", () => {
+		const lines = renderHeaderRail(
+			snapshot,
+			{ ...DEFAULT_CONFIG, panelPlacement: "top", headerRailRows: 4 },
+			theme,
+			240,
+			{ workspace: false },
+		);
+		const rendered = lines.join("\n");
+		expect(rendered).not.toContain("ACTIVITY");
+		expect(rendered).not.toContain("CONTEXT");
+		for (const section of ["AGENT", "WORKSPACE", "TOOLS"]) expect(rendered).toContain(section);
+	});
+
+	it("keeps every section for right placement and when placement is not overridden", () => {
+		const right = renderHeaderRail(snapshot, { ...DEFAULT_CONFIG, panelPlacement: "right" }, theme, 240, {});
+		expect(right.join("\n")).toContain("ACTIVITY");
+		expect(right.join("\n")).toContain("CONTEXT");
+		expect(render(240).join("\n")).toContain("ACTIVITY");
+		expect(render(240).join("\n")).toContain("CONTEXT");
+	});
+
 	it("hides summaries for collapsed sections and marks focus only when requested", () => {
 		const collapsed = renderHeaderRail(snapshot, DEFAULT_CONFIG, theme, 120, { agent: false });
 		expect(collapsed.join("\n")).toContain("▸ AGENT");
