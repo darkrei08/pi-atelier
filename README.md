@@ -55,7 +55,8 @@ Plain text mode works with any monospace font, renders the interface using ASCII
 | Core footer | Below 76 columns or 20 rows | One row with Activity and Context only |
 | Sidebar split | At least 104 columns (76 main + 28 sidebar) and 20 rows | Keeps at least 76 columns for the main pane |
 | Top strip | At least 64 columns and 20 rows | Existing compact rail gates remain in effect |
-| Editor frame | More than 4 rows | Omits frame chrome at 4 rows or fewer |
+| Core-only surface | 6 rows or fewer | No editor frame, top strip, or split sidebar; one Activity + Context footer row |
+| Editor frame | 7 or more rows | Omits frame chrome at 6 rows or fewer |
 | Reflow target | 320 px, about 44 columns at 12 px monospace | Core footer stays on one row |
 
 Text roles meet a 4.5:1 contrast ratio against black and `#1e1e2e`; non-text indicators meet 3:1. Color is never the only signal. Touch target sizes belong to the terminal client (Heeler), not to the TUI cells.
@@ -87,6 +88,7 @@ Open `/atelier` or press **F6** to change display settings, control the sidebar,
 /atelier sidebar tools        toggle tool names
 /atelier placement right|top  choose the sidebar or header rail
 /atelier section <id>         expand or collapse a header section
+/atelier todos [action]        scroll the TODO panel; default action is top
 /atelier enable|disable       set extension state
 ```
 
@@ -101,7 +103,7 @@ Open `/atelier` or press **F6** to change display settings, control the sidebar,
 - The preferred width survives terminal resizes and mode changes.
 - A confirmed resize is saved as `sidebarWidth` and becomes the starting width for new sessions. Escape keeps the saved width.
 - Mode and visibility are session-scoped. The startup visibility preference is set in Settings.
-- The TODO panel supports Pi `todo` results and the optional `@juicesharp/rpiv-todo` extension. Atelier does not change `todo` results, so the agent keeps task ids and `list` output.
+- The TODO panel supports Pi `todo` results and the optional `@juicesharp/rpiv-todo` extension. It shows up to six items at a time; while the sidebar is visible, **Ctrl+P/Ctrl+N** move one item and **Ctrl+U/Ctrl+D** move one window. `/atelier todos [top|next|prev|page-up|page-down]` scrolls the same session-scoped list for clients without those keys. Hidden TODO results keep their full output.
 
 ### Prefill progress
 

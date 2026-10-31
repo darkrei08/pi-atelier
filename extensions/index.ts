@@ -7,7 +7,7 @@ import {
 	getAgentDir,
 	SettingsManager,
 } from "@earendil-works/pi-coding-agent";
-import { isViewportTUI, type KeyId } from "@earendil-works/pi-tui";
+import { isViewportTUI, matchesKey, type KeyId } from "@earendil-works/pi-tui";
 import {
 	type CompletionNotification,
 	type CompletionNotifier,
@@ -156,6 +156,7 @@ interface ActiveSession {
 	todos: NormalizedTodo[];
 	/** Whether the latest Turn ended in a provider error that the user did not abort. */
 	providerFailed: boolean;
+	todoOffset: number;
 	requestFooterRender: () => void;
 	extensionStatuses: readonly string[];
 	railBar: RailBarComponent | undefined;
@@ -682,6 +683,29 @@ export default function atelierExtension(
 		);
 	};
 
+	const visibleTodoCount = (current: ActiveSession): number =>
+		current.runActivity.getSnapshot().phase === "running"
+			? current.todos.filter((todo) => todo.status === "in_progress").length
+			: current.todos.length;
+	const clampTodoOffset = (current: ActiveSession): void => {
+		current.todoOffset = Math.min(current.todoOffset, Math.max(0, visibleTodoCount(current) - 1));
+	};
+	const scrollTodos = (current: ActiveSession, action: string): void => {
+		clampTodoOffset(current);
+		const maxOffset = Math.max(0, visibleTodoCount(current) - 1);
+		const step =
+			action === "next"
+				? 1
+				: action === "prev"
+					? -1
+					: action === "page-down"
+						? 6
+						: action === "page-up"
+							? -6
+							: 0;
+		current.todoOffset = action === "top" ? 0 : Math.max(0, Math.min(maxOffset, current.todoOffset + step));
+		current.sidebar.requestRender();
+	};
 	const commands = new Map<string, CommandHandler>(
 		Object.entries({
 			placement: (ctx, [placement, ...extra]) => {
@@ -698,10 +722,27 @@ export default function atelierExtension(
 				}
 				toggleRailSection(ctx, id);
 			},
+			todos: (ctx, [action, ...extra]) => {
+				const current = requireActiveSession(ctx);
+				if (!current) return;
+				if (
+					extra.length > 0 ||
+					(action !== undefined && !["top", "next", "prev", "page-up", "page-down"].includes(action))
+				) {
+					usage(ctx, "todos [top|next|prev|page-up|page-down]");
+					return;
+				}
+				scrollTodos(current, action ?? "top");
+				ctx.ui.notify(
+					`TODOs ${current.todos.length === 0 ? 0 : current.todoOffset + 1}/${current.todos.length}`,
+					"info",
+				);
+			},
 			usage: async (ctx, args) => {
 				if (args.length > 0) usage(ctx, "usage");
 				else await openUsage(ctx);
 			},
+
 			display: async (ctx, args) => {
 				if (args.length > 0) usage(ctx, "display");
 				else await openDisplay(ctx);
@@ -753,6 +794,7 @@ export default function atelierExtension(
 				current.runActivity.resetResponse();
 				current.completionNotifier.reset();
 				current.todos = [];
+				current.todoOffset = 0;
 				current.sidebar.hide();
 				updateExtensionStatuses(current, []);
 				clearFooter(current, true);
@@ -764,6 +806,7 @@ export default function atelierExtension(
 				if (!enabled) {
 					enabled = true;
 					current.todos = reconstructTodos(current.ctx);
+					current.todoOffset = 0;
 					current.runtime.setEnabled(true);
 					syncFooter(current);
 				}
@@ -898,6 +941,25 @@ export default function atelierExtension(
 		cleanup.push(() => completionNotifier.reset());
 		const sidebar = createSidebarController({
 			ctx,
+			getTodoOffset: () => (activeSession?.token === token ? activeSession.todoOffset : 0),
+			handleTodoInput: (data) => {
+				const current = getActiveSession(ctx);
+				if (
+					!current ||
+					!current.sidebar.isVisible() ||
+					!current.runtime.getConfig().sidebarPanelLayout.some(({ id, visible }) => id === "todos" && visible)
+				)
+					return false;
+				const action = [
+					["ctrl+p", "prev"],
+					["ctrl+n", "next"],
+					["ctrl+u", "page-up"],
+					["ctrl+d", "page-down"],
+				].find(([key]) => matchesKey(data, key! as KeyId))?.[1];
+				if (!action) return false;
+				scrollTodos(current, action);
+				return true;
+			},
 			getSnapshot: () => {
 				const current = activeSession;
 				if (!current || current.token !== token) throw new Error("Pi Atelier session is not published");
@@ -940,6 +1002,7 @@ export default function atelierExtension(
 			inputRequestSequence: 0,
 			todos: enabled ? reconstructTodos(ctx) : [],
 			providerFailed: false,
+			todoOffset: 0,
 			requestFooterRender: noopRender,
 			extensionStatuses: [],
 			railBar: undefined,
@@ -1022,6 +1085,7 @@ export default function atelierExtension(
 		const current = getActiveSession(ctx);
 		if (!enabled || !current) return;
 		current.todos = reconstructTodos(ctx);
+		clampTodoOffset(current);
 		void current.runtime.refreshSubagentUsage();
 		requestAllRenders(current);
 	});
@@ -1112,6 +1176,7 @@ export default function atelierExtension(
 		if (!todos) return;
 		// Leave the result content untouched: it is what the model reads, including task ids.
 		current.todos = todos;
+		clampTodoOffset(current);
 		current.sidebar.requestRender();
 	});
 	pi.on("agent_settled", (_event, ctx) => {

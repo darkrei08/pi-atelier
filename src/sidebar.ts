@@ -387,15 +387,27 @@ const TODO_CHECK = {
 	pending: { role: "dim" },
 } as const satisfies Record<NormalizedTodo["status"], { role: PaletteRole }>;
 
-function todosRows(snapshot: SidebarSnapshot, palette: AtelierPalette, nerdFont: boolean): string[] {
+function todosRows(
+	snapshot: SidebarSnapshot,
+	palette: AtelierPalette,
+	nerdFont: boolean,
+	offset: number,
+): string[] {
 	const glyphs = surfaceGlyphs("sidebar", nerdFont);
 	const todos = snapshot.todos;
 	if (todos.length === 0) return [];
 	const done = todos.filter((todo) => todo.status === "completed").length;
-	const visible =
+	const available =
 		snapshot.runActivity.phase === "running" ? todos.filter((todo) => todo.status === "in_progress") : todos;
+	const start = Math.min(offset, Math.max(0, available.length - 1));
+	const visible = available.slice(start, start + 6);
+	const position = `${start + 1}/${available.length}`;
+	const summary =
+		todos.length > 6
+			? `${done}/${todos.length} · ${start > 0 ? "↑ " : ""}${position}${start + visible.length < available.length ? " ↓" : ""}`
+			: `${done}/${todos.length}`;
 	return [
-		palette.paint("muted", `${done}/${todos.length}`),
+		palette.paint("muted", summary),
 		...visible.map((todo) => {
 			const check = TODO_CHECK[todo.status];
 			const glyph =
@@ -717,6 +729,7 @@ export interface SidebarRenderOptions {
 	now?: number;
 	resizing?: boolean;
 	chartGraphics?: SubagentCostChartGraphics;
+	todoOffset?: number;
 }
 
 export function renderSidebarLines(
@@ -725,7 +738,13 @@ export function renderSidebarLines(
 	theme: ThemeLike,
 	width: number,
 	height: number,
-	{ colorEnabled = true, now = Date.now(), resizing = false, chartGraphics = {} }: SidebarRenderOptions = {},
+	{
+		colorEnabled = true,
+		now = Date.now(),
+		resizing = false,
+		chartGraphics = {},
+		todoOffset = 0,
+	}: SidebarRenderOptions = {},
 ): string[] {
 	const palette = createPalette(theme, colorEnabled);
 	const safeWidth = Math.max(0, Math.trunc(width));
@@ -773,7 +792,7 @@ export function renderSidebarLines(
 			{
 				name: "todos",
 				panel: { id: "todos", title: "TODOS", role: "accent" },
-				rows: todosRows(snapshot, palette, config.nerdFont),
+				rows: todosRows(snapshot, palette, config.nerdFont, todoOffset),
 				dropRank: DROP_RANK.todos,
 			},
 		],
@@ -956,6 +975,7 @@ export function renderSidebarLines(
 export interface SidebarComponentOptions {
 	getSnapshot(): SidebarSnapshot;
 	getConfig(): AtelierConfig;
+	getTodoOffset?(): number;
 	getHeight(): number;
 	isResizing?(): boolean;
 	canRenderImages?(): boolean;
@@ -992,6 +1012,7 @@ export function createSidebarComponent(options: SidebarComponentOptions): Compon
 				resizing = options.isResizing?.() ?? false;
 				return renderSidebarLines(options.getSnapshot(), options.getConfig(), options.theme, width, height, {
 					colorEnabled: options.colorEnabled ?? true,
+					todoOffset: options.getTodoOffset?.() ?? 0,
 					resizing,
 					chartGraphics: {
 						imageOwner: options.canRenderImages ? imageOwner : undefined,
@@ -1024,6 +1045,8 @@ export interface SidebarControllerOptions {
 	ctx: ExtensionContext;
 	getSnapshot(): SidebarSnapshot;
 	getConfig(): AtelierConfig;
+	getTodoOffset?(): number;
+	handleTodoInput?(data: string): boolean;
 	colorEnabled?: boolean;
 	shouldAnimate?(): boolean;
 	/** Preferred sidebar width when the session starts. */
@@ -1084,6 +1107,7 @@ export function createSidebarController(options: SidebarControllerOptions): Side
 	let requestOverlayRender: (() => void) | undefined;
 	let overlayHandle: OverlayHandle | undefined;
 	let animationTimer: ReturnType<typeof setInterval> | undefined;
+	let unsubscribeTodoInput: (() => void) | undefined;
 
 	const reportError = (error: unknown) => {
 		try {
@@ -1149,6 +1173,9 @@ export function createSidebarController(options: SidebarControllerOptions): Side
 	const abandonShow = () => {
 		enabled = false;
 		stopAnimation();
+		const unsubscribe = unsubscribeTodoInput;
+		unsubscribeTodoInput = undefined;
+		if (unsubscribe) safely(unsubscribe);
 		clearOverlayCallbacks();
 		safely(split.hide);
 	};
@@ -1158,6 +1185,9 @@ export function createSidebarController(options: SidebarControllerOptions): Side
 		enabled = false;
 		generation += 1;
 		stopAnimation();
+		const unsubscribe = unsubscribeTodoInput;
+		unsubscribeTodoInput = undefined;
+		if (unsubscribe) safely(unsubscribe);
 		safely(split.cancelResize);
 		const close = closeOverlay;
 		const handle = overlayHandle;
@@ -1178,6 +1208,15 @@ export function createSidebarController(options: SidebarControllerOptions): Side
 
 		enabled = true;
 		const currentGeneration = ++generation;
+		if (options.handleTodoInput) {
+			try {
+				unsubscribeTodoInput = options.ctx.ui.onTerminalInput((data) =>
+					options.handleTodoInput?.(data) ? { consume: true } : undefined,
+				);
+			} catch (error) {
+				reportError(error);
+			}
+		}
 		if (!safely(split.show)) {
 			abandonShow();
 			return;
@@ -1210,6 +1249,7 @@ export function createSidebarController(options: SidebarControllerOptions): Side
 					return createSidebarComponent({
 						getSnapshot: binding.getSnapshot,
 						getConfig: binding.getConfig,
+						...(options.getTodoOffset ? { getTodoOffset: options.getTodoOffset } : {}),
 						getHeight: () => tui.terminal.rows,
 						isResizing: split.isResizing,
 						canRenderImages: () => !hasCapturingOverlay(tui),
