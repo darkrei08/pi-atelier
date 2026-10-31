@@ -462,9 +462,8 @@ function toolActivityRow(
 }
 
 function runPhaseRole(activity: RunActivitySnapshot, failed = false): PaletteRole {
-	if (failed || activity.failedCount > 0) return "error";
 	if (activity.phase === "running") return "working";
-	return "chartGreen";
+	return failed || activity.failedCount > 0 ? "error" : "chartGreen";
 }
 
 function runSummaryRow(
