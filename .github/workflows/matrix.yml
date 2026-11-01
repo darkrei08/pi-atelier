@@ -58,7 +58,6 @@ jobs:
           set -eu
           docker run --rm -e NODE_VERSION -v "$GITHUB_WORKSPACE:/src:ro" -w /tmp "$IMAGE" sh -ceu '
             . /etc/os-release
-            git config --global --add safe.directory '*'
             case "${ID} ${ID_LIKE:-}" in
               *alpine*) apk add --no-cache nodejs npm git curl xz bash >/dev/null ;;
               *arch*) pacman -Sy --noconfirm --needed nodejs npm git curl xz >/dev/null ;;
@@ -71,6 +70,7 @@ jobs:
                 curl -fsSL "https://nodejs.org/dist/$NODE_VERSION/node-$NODE_VERSION-linux-x64.tar.xz" | tar -xJ -C /usr/local --strip-components=1 ;;
               *) echo "unmapped distribution: ${ID} / ${ID_LIKE:-}" >&2; exit 2 ;;
             esac
+            git config --global --add safe.directory '*'
             echo "distro=${PRETTY_NAME}"
             node -v
             npm -v
