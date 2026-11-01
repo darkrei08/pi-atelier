@@ -1,6 +1,8 @@
 import { spawn as nodeSpawn, type SpawnOptions } from "node:child_process";
 import { sanitizeInline } from "./text.js";
 import { surfaceGlyphs } from "./glyphs.js";
+import { t } from "./i18n.js";
+import type { LanguageSetting } from "./i18n.js";
 
 type CompletionNotificationKind = "turn-settled" | "input-requested";
 
@@ -26,6 +28,7 @@ export type SpawnNotificationProcess = (
 export interface CompletionNotifierOptions {
 	isEnabled(): boolean;
 	getNerdFont?(): boolean;
+	getLanguage?(): LanguageSetting;
 	platform?: NodeJS.Platform;
 	spawn?: SpawnNotificationProcess;
 }
@@ -71,7 +74,7 @@ export function createCompletionNotifier(options: CompletionNotifierOptions): Co
 			platform,
 			spawn,
 			formatTitle(notification, separator),
-			formatBody(kind, notification, separator),
+			formatBody(kind, notification, separator, options.getLanguage?.() ?? "auto"),
 			() => {
 				if (cancel) pendingSystemNotifications.delete(cancel);
 			},
@@ -113,15 +116,16 @@ function formatBody(
 	kind: CompletionNotificationKind,
 	notification: CompletionNotification,
 	separator: string,
+	language: LanguageSetting,
 ): string {
-	const parts = [kind === "input-requested" ? "Input requested" : "Turn settled"];
+	const parts = [t(language, kind === "input-requested" ? "inputRequested" : "turnSettled")];
 	const session = sanitize(notification.sessionName ?? "", 100);
 	if (session.length > 0) parts.push(session);
 	if (kind === "turn-settled") {
 		const completed = normalizeCount(notification.completedToolCount);
 		const failed = normalizeCount(notification.failedToolCount);
-		if (completed > 0) parts.push(`${completed} done`);
-		if (failed > 0) parts.push(`${failed} failed`);
+		if (completed > 0) parts.push(`${completed} ${t(language, "done")}`);
+		if (failed > 0) parts.push(`${failed} ${t(language, "failed")}`);
 	}
 	return parts.join(` ${separator} `);
 }

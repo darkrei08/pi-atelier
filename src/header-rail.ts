@@ -1,5 +1,6 @@
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { createPalette, type PaletteRole, type ThemeLike } from "./palette.js";
+import { t } from "./i18n.js";
 import { asciiGlyphText, surfaceGlyphs } from "./glyphs.js";
 import {
 	isSectionExpanded,
@@ -49,16 +50,16 @@ export function renderHeaderRail(
 		const role = SECTION_ROLES[id];
 		if (!role) return [];
 		const expanded = isSectionExpanded(expansion, id);
-		const rawSummary = expanded ? sectionSummary(snapshot, id) : "";
+		const rawSummary = expanded ? sectionSummary(snapshot, id, config.language) : "";
 		const summary = config.nerdFont ? rawSummary : asciiGlyphText(rawSummary, "headerRail");
 		const details = expanded
-			? sectionDetailRows(snapshot, id).map((line) =>
+			? sectionDetailRows(snapshot, id, config.language).map((line) =>
 					config.nerdFont ? line : asciiGlyphText(line, "headerRail"),
 				)
 			: [];
 		if (expanded && !summary && details.length === 0) return [];
 		const marker = expanded ? glyphs.railExpanded : glyphs.railCollapsed;
-		const content = `${marker} ${id.toUpperCase()}${summary ? ` ${summary}` : ""}`;
+		const content = `${marker} ${t(config.language, id)}${summary ? ` ${summary}` : ""}`;
 		const text = focusedId === id ? theme.bold(`<${content}>`) : content;
 		return [{ id, text: palette.paint(role, text), expanded, details }];
 	});
@@ -101,7 +102,7 @@ export function renderHeaderRail(
 	const details = sections
 		.slice(0, sectionIndex)
 		.flatMap(({ id, expanded, details }) =>
-			expanded ? details.map((line) => `${id.toUpperCase()} ${sanitizeInline(line)}`) : [],
+			expanded ? details.map((line) => `${t(config.language, id)} ${sanitizeInline(line)}`) : [],
 		);
 	const availableDetailRows = Math.max(0, maxRows - rows.length);
 	const visibleDetails = details.slice(0, availableDetailRows);

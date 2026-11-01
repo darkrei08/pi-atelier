@@ -2,6 +2,8 @@ import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { type AtelierPalette, PALETTE_RGB, type PaletteRole, paintRgb, type Rgb } from "./palette.js";
 import { interpolateCostCurve, renderCostImage } from "./subagent-cost-image.js";
 import { surfaceGlyphs } from "./glyphs.js";
+import { t } from "./i18n.js";
+import type { LanguageSetting } from "./i18n.js";
 import type { SubagentUsageSnapshot } from "./subagent-usage.js";
 import { clamp, sanitizeInline } from "./text.js";
 
@@ -45,6 +47,7 @@ export interface SubagentCostChartGraphics {
 }
 
 export interface SubagentCostChartOptions extends SubagentCostChartGraphics {
+	language?: LanguageSetting;
 	height?: number;
 	focusedSeries?: string | undefined;
 	focusedPoint?: number | undefined;
@@ -82,14 +85,23 @@ export function subagentCostChart(
 	const selected = all
 		.map((series, index) => ({ series, index }))
 		.filter(({ series }) => series.points.length > 1);
+	const language = options.language ?? "en";
 	const incomplete = Boolean(usage.unavailable || usage.limited || usage.historyUnavailable);
 	if (!selected.length) {
-		if (incomplete) return [palette.paint("warning", `Cost history unavailable ${glyphs.bullet} partial`)];
+		if (incomplete)
+			return [
+				palette.paint(
+					"warning",
+					`${t(language, "costHistoryUnavailable")} ${glyphs.bullet} ${t(language, "partial")}`,
+				),
+			];
 		return usage.pending || usage.runs.length
 			? [
 					palette.paint(
 						"dim",
-						usage.pending ? `Cost curves ${glyphs.bullet} awaiting usage` : "Cost history unavailable",
+						usage.pending
+							? `${t(language, "costCurves")} ${glyphs.bullet} ${t(language, "awaitingUsage")}`
+							: t(language, "costHistoryUnavailable"),
 					),
 				]
 			: [];
@@ -127,7 +139,7 @@ export function subagentCostChart(
 	const rows = [
 		palette.paint(
 			"muted",
-			`Cost per agent ${glyphs.bullet} ${selected.length} curves${partial ? ` ${glyphs.bullet} partial` : ""}`,
+			`${t(language, "costPerAgent")} ${glyphs.bullet} ${selected.length} ${t(language, "costCurves").toLowerCase()}${partial ? ` ${glyphs.bullet} ${t(language, "partial")}` : ""}`,
 		),
 	];
 	if (options.suspendPlot) {
@@ -136,7 +148,7 @@ export function subagentCostChart(
 		for (let y = 0; y < height; y++) {
 			rows.push(
 				y === Math.floor(height / 2)
-					? palette.paint("dim", truncateToWidth("Close dialog to view graph", width, glyphs.ellipsis))
+					? palette.paint("dim", truncateToWidth(t(language, "closeDialog"), width, glyphs.ellipsis))
 					: "",
 			);
 		}

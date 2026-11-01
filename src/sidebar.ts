@@ -7,6 +7,7 @@ import { contextRole } from "./footer.js";
 import { type PrefillSnapshot, formatPrefillRows } from "./prefill.js";
 import { hasCapturingOverlay } from "./image-compositor.js";
 import { formatTokens } from "./metrics.js";
+import { t } from "./i18n.js";
 import { asciiGlyphText, surfaceGlyphs } from "./glyphs.js";
 import { renderPanelCard } from "./panel-card.js";
 import { type AtelierPalette, createPalette, type PaletteRole, type ThemeLike } from "./palette.js";
@@ -157,10 +158,11 @@ function agentRows(
 	width: number,
 	palette: AtelierPalette,
 	theme: ThemeLike,
+	language: AtelierConfig["language"],
 ): string[] {
 	const working = snapshot.activity === "working";
 	const failed = snapshot.activity === "error";
-	const label = working ? "Working" : failed ? "Error" : "Ready";
+	const label = t(language, working ? "workingTitle" : failed ? "errorTitle" : "readyTitle");
 	const phrase = working && snapshot.workingLabel ? ` · ${sanitizeInline(snapshot.workingLabel)}` : "";
 	const knownModel = Boolean(snapshot.modelId || snapshot.provider);
 	return [
@@ -168,15 +170,15 @@ function agentRows(
 		theme.bold(valueRow(snapshot.modelId, palette, "primary")),
 		valueRow(snapshot.provider, palette, "muted"),
 		labeledRow(
-			"Thinking",
+			t(language, "thinking"),
 			snapshot.thinkingLevel ? sanitizeInline(snapshot.thinkingLevel) || PLACEHOLDER : PLACEHOLDER,
 			width,
 			palette,
 			snapshot.thinkingLevel ? "primary" : "dim",
 		),
 		labeledRow(
-			"Billing",
-			knownModel ? (snapshot.metrics.subscription ? "Subscription" : "Metered") : PLACEHOLDER,
+			t(language, "billing"),
+			knownModel ? t(language, snapshot.metrics.subscription ? "subscription" : "metered") : PLACEHOLDER,
 			width,
 			palette,
 			knownModel && snapshot.metrics.subscription ? "ready" : "muted",
@@ -198,6 +200,7 @@ function workspacePulseRows(
 	pulse: WorkspacePulseState,
 	width: number,
 	palette: AtelierPalette,
+	language: AtelierConfig["language"],
 ): { core: string[]; details: string[] } {
 	switch (pulse.status) {
 		case "inspecting":
@@ -218,8 +221,12 @@ function workspacePulseRows(
 		const lines = `${palette.paint("chartGreen", added)}  ${palette.paint("error", removed)}`;
 		// One "4 files  +54  −20" row when it fits, otherwise files and lines on their own rows.
 		if (visibleWidth(`Changed ${files}  ${added}  ${removed}`) <= width)
-			core.push(labeledRow("Changed", `${files}  ${lines}`, width, palette));
-		else core.push(labeledRow("Changed", files, width, palette), labeledRow("Lines", lines, width, palette));
+			core.push(labeledRow(t(language, "changed"), `${files}  ${lines}`, width, palette));
+		else
+			core.push(
+				labeledRow(t(language, "changed"), files, width, palette),
+				labeledRow("Lines", lines, width, palette),
+			);
 	}
 	if (git.conflicts > 0)
 		core.push(labeledRow("Conflicts", formatTokens(git.conflicts), width, palette, "error"));
@@ -262,7 +269,7 @@ function contextRows(
 	const usage = `${formatTokens(metrics.contextTokens)} / ${metrics.contextWindow > 0 ? formatTokens(metrics.contextWindow) : PLACEHOLDER}`;
 	return [
 		meterWidth > 0 ? `${meter}  ${percentage}` : percentage,
-		labeledRow("Tokens", usage, width, palette, "muted"),
+		labeledRow(t(config.language, "tokens"), usage, width, palette, "muted"),
 	];
 }
 
@@ -324,15 +331,26 @@ function usageRows(
 	if (metrics.usageAvailable) {
 		const hit = metrics.cacheHitPercent === undefined ? undefined : `${metrics.cacheHitPercent.toFixed(1)}%`;
 		rows.push(
-			labeledRow("Input", formatUsageTokens(metrics.input), width, palette, "input"),
-			labeledRow("Output", formatUsageTokens(metrics.output), width, palette, "output"),
-			labeledRow("Cache read", formatUsageTokens(metrics.cacheRead), width, palette, "cache"),
-			labeledRow("Cache hit", hit ?? PLACEHOLDER, width, palette, hit ? "primary" : "dim"),
+			labeledRow(t(config.language, "input"), formatUsageTokens(metrics.input), width, palette, "input"),
+			labeledRow(t(config.language, "output"), formatUsageTokens(metrics.output), width, palette, "output"),
+			labeledRow(
+				t(config.language, "cacheRead"),
+				formatUsageTokens(metrics.cacheRead),
+				width,
+				palette,
+				"cache",
+			),
+			labeledRow(t(config.language, "cacheHit"), hit ?? PLACEHOLDER, width, palette, hit ? "primary" : "dim"),
 		);
 	}
 	if (metrics.costAvailable) {
 		rows.push(
-			labeledRow("Cost", `$${Math.max(0, metrics.cost).toFixed(config.currencyDecimals)}`, width, palette),
+			labeledRow(
+				t(config.language, "cost"),
+				`$${Math.max(0, metrics.cost).toFixed(config.currencyDecimals)}`,
+				width,
+				palette,
+			),
 		);
 	}
 	return rows;
@@ -348,12 +366,15 @@ function subagentRows(
 	const usage = snapshot.subagentUsage;
 	if (!usage || (!usage.runs.length && !usage.unavailable && !usage.pending && !usage.limited)) return [];
 	return [
-		...subagentCostChart(usage, width, config.currencyDecimals, config.nerdFont, palette, chartGraphics),
+		...subagentCostChart(usage, width, config.currencyDecimals, config.nerdFont, palette, {
+			...chartGraphics,
+			language: config.language,
+		}),
 		...(usage.pending ? [palette.paint("dim", "Running · curves update on reply")] : []),
 		...(usage.unavailable || usage.limited
 			? [palette.paint("warning", "Partial · metadata unavailable")]
 			: []),
-		palette.paint("dim", "/atelier usage · expand graph"),
+		palette.paint("dim", t(config.language, "expandGraph")),
 	];
 }
 
@@ -759,21 +780,21 @@ export function renderSidebarLines(
 				name: "agent",
 				panel: {
 					id: "agent",
-					title: "AGENT",
+					title: t(config.language, "agent"),
 					role: snapshot.activity,
 					jewel:
 						snapshot.activity === "working" && Math.floor(now / SIDEBAR_ANIMATION_INTERVAL_MS) % 2 === 1
 							? "✧"
 							: "✦",
 				},
-				rows: agentRows(snapshot, panelWidth, palette, theme),
+				rows: agentRows(snapshot, panelWidth, palette, theme, config.language),
 				dropRank: DROP_RANK.required,
 			},
 		],
 		activity: () =>
 			activityGroups(snapshot, panelWidth, palette, now, {
 				id: "activity",
-				title: "ACTIVITY",
+				title: t(config.language, "activity"),
 				role: runPhaseRole(snapshot.runActivity, snapshot.activity === "error"),
 			}),
 		alerts: () => [
@@ -781,7 +802,7 @@ export function renderSidebarLines(
 				name: "alerts",
 				panel: {
 					id: "alerts",
-					title: "ALERTS",
+					title: t(config.language, "alerts"),
 					role: alerts.some((alert) => alert.role === "error") ? "error" : "warning",
 				},
 				rows: alerts.map(({ role, text }) => palette.paint(role, `${role === "error" ? "✕" : "▲"} ${text}`)),
@@ -791,7 +812,7 @@ export function renderSidebarLines(
 		todos: () => [
 			{
 				name: "todos",
-				panel: { id: "todos", title: "TODOS", role: "accent" },
+				panel: { id: "todos", title: t(config.language, "todos"), role: "accent" },
 				rows: todosRows(snapshot, palette, config.nerdFont, todoOffset),
 				dropRank: DROP_RANK.todos,
 			},
@@ -801,7 +822,7 @@ export function renderSidebarLines(
 				name: "context",
 				panel: {
 					id: "context",
-					title: "CONTEXT",
+					title: t(config.language, "context"),
 					role: sidebarContextRole(snapshot.metrics.contextPercent, config),
 				},
 				rows: contextRows(snapshot, config, panelWidth, palette, theme),
@@ -822,9 +843,9 @@ export function renderSidebarLines(
 			];
 		},
 		workspace: () => {
-			const panel = { id: "workspace", title: "WORKSPACE", role: "accent" } as const;
+			const panel = { id: "workspace", title: t(config.language, "workspace"), role: "accent" } as const;
 			const pulseData = workspacePulseData(snapshot.workspacePulse);
-			const pulse = workspacePulseRows(snapshot.workspacePulse, panelWidth, palette);
+			const pulse = workspacePulseRows(snapshot.workspacePulse, panelWidth, palette, config.language);
 			const location = pulseData
 				? pulseData.relativeCwd
 					? [palette.paint("muted", `./${sanitizeInline(pulseData.relativeCwd)}`)]
@@ -872,7 +893,7 @@ export function renderSidebarLines(
 		usage: () => [
 			{
 				name: "usage",
-				panel: { id: "usage", title: "USAGE", role: "chartGold" },
+				panel: { id: "usage", title: t(config.language, "usage"), role: "chartGold" },
 				rows: usageRows(snapshot, config, panelWidth, palette),
 				dropRank: DROP_RANK.usage,
 			},
@@ -880,13 +901,13 @@ export function renderSidebarLines(
 		subagents: () => [
 			{
 				name: "subagentCostChart",
-				panel: { id: "subagents", title: "SUBAGENTS", role: "output" },
+				panel: { id: "subagents", title: t(config.language, "subagents"), role: "output" },
 				rows: subagentRows(snapshot, config, panelWidth, palette, chartGraphics),
 				dropRank: DROP_RANK.subagents,
 			},
 		],
 		tools: () => {
-			const panel = { id: "tools", title: "TOOLS", role: "chartPink" } as const;
+			const panel = { id: "tools", title: t(config.language, "tools"), role: "chartPink" } as const;
 			const showToolNames = config.showSidebarToolNames && safeWidth > COMPACT_SIDEBAR_MAX_WIDTH;
 			const nameRows = showToolNames ? activeToolNameRows(snapshot, panelWidth, palette) : [];
 			return [
@@ -895,7 +916,7 @@ export function renderSidebarLines(
 					panel,
 					rows: [
 						labeledRow(
-							"Enabled",
+							t(config.language, "enabled"),
 							`${snapshot.activeToolCount} / ${snapshot.availableToolCount}`,
 							panelWidth,
 							palette,
@@ -962,8 +983,8 @@ export function renderSidebarLines(
 	if (!availableVisible) {
 		ordered.push({
 			name: "empty",
-			panel: { id: "__empty__", title: "SIDEBAR", role: "muted" },
-			rows: ["No available panels", "Open /atelier Settings"],
+			panel: { id: "__empty__", title: t(config.language, "sidebar"), role: "muted" },
+			rows: [t(config.language, "noAvailablePanels"), t(config.language, "openSettings")],
 			dropRank: DROP_RANK.required,
 		});
 	}

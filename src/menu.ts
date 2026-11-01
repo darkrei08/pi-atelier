@@ -14,6 +14,7 @@ import {
 } from "@earendil-works/pi-tui";
 import { saveUserConfigPatch } from "./config.js";
 import { surfaceGlyphs } from "./glyphs.js";
+import { t } from "./i18n.js";
 import { isSectionExpanded, toggleSection } from "./rail-sections.js";
 import { BUILTIN_SIDEBAR_PANEL_IDS, isBuiltinSidebarPanelId } from "./sidebar-panels.js";
 import { isLifetimeActive, openLifecycleOverlay, type OverlayLifetime } from "./overlay-lifecycle.js";
@@ -33,12 +34,16 @@ import type { AtelierConfig } from "./types.js";
 type SaveConfigPatch = typeof saveUserConfigPatch;
 type ThinkingLevel = Parameters<ExtensionAPI["setThinkingLevel"]>[0];
 
-export function sidebarStatusLabel(status: SidebarStatus, nerdFont = true): string {
-	const label = status.mode === "auto" ? "Auto" : "Manual";
+export function sidebarStatusLabel(
+	status: SidebarStatus,
+	nerdFont = true,
+	language: AtelierConfig["language"] = "en",
+): string {
+	const label = t(language, status.mode === "auto" ? "autoMode" : "manualMode");
 	const separator = nerdFont ? "·" : "-";
-	if (!status.enabled) return `${label} ${separator} hidden`;
+	if (!status.enabled) return `${label} ${separator} ${t(language, "sidebarHidden")}`;
 	return status.presentation === "auto-collapsed" || status.presentation === "too-narrow"
-		? `${label} ${separator} hidden: narrow terminal`
+		? `${label} ${separator} ${t(language, "sidebarHiddenNarrow")}`
 		: label;
 }
 
@@ -461,12 +466,12 @@ export async function openAtelierControlCenter(
 				},
 				{
 					value: "placement",
-					label: `Panel placement: ${config.panelPlacement}`,
+					label: `${t(config.language, "placement")}: ${t(config.language, config.panelPlacement)}`,
 					description: "Use the right sidebar or the header rail",
 				},
 				...BUILTIN_SIDEBAR_PANEL_IDS.map((id) => ({
 					value: `section-${id}`,
-					label: `${id.toUpperCase()}: ${isSectionExpanded(config.sectionExpansion, id) ? "Expanded" : "Collapsed"}`,
+					label: `${t(config.language, id)}: ${t(config.language, isSectionExpanded(config.sectionExpansion, id) ? "expandedLabel" : "collapsedLabel")}`,
 					description: "Toggle this header section",
 				})),
 				{
@@ -514,7 +519,10 @@ export async function openAtelierControlCenter(
 						sourcePanelPlacement: placement,
 					});
 					if ((placement === "top") === sidebar.getStatus().enabled) sidebar.toggle();
-					ctx.ui.notify(`Panel placement: ${placement}`, "info");
+					ctx.ui.notify(
+						`${t(runtime.getConfig().language, "placement")}: ${t(runtime.getConfig().language, placement)}`,
+						"info",
+					);
 					break;
 				}
 				case "notifications":
@@ -537,7 +545,7 @@ export async function openAtelierControlCenter(
 								sectionExpansion,
 							});
 							ctx.ui.notify(
-								`${id.toUpperCase()} ${isSectionExpanded(sectionExpansion, id) ? "expanded" : "collapsed"}`,
+								`${t(config.language, id)} ${t(config.language, isSectionExpanded(sectionExpansion, id) ? "expanded" : "collapsed")}`,
 								"info",
 							);
 						}
@@ -598,7 +606,7 @@ export async function openAtelierControlCenter(
 			const choice = await choose("Controls", [
 				{
 					value: "sidebar",
-					label: `Sidebar: ${sidebarStatusLabel(sidebar.getStatus(), runtime.getConfig().nerdFont)}`,
+					label: `Sidebar: ${sidebarStatusLabel(sidebar.getStatus(), runtime.getConfig().nerdFont, runtime.getConfig().language)}`,
 					description: "Choose Auto or Manual; show or hide independently",
 				},
 				{
@@ -635,7 +643,7 @@ export async function openAtelierControlCenter(
 			{
 				value: "controls",
 				label: "Controls",
-				description: `Session controls ${runtime.getConfig().nerdFont ? "·" : "-"} Sidebar: ${sidebarStatusLabel(sidebar.getStatus(), runtime.getConfig().nerdFont)}`,
+				description: `Session controls ${runtime.getConfig().nerdFont ? "·" : "-"} Sidebar: ${sidebarStatusLabel(sidebar.getStatus(), runtime.getConfig().nerdFont, runtime.getConfig().language)}`,
 			},
 			...(openUsage
 				? [{ value: "usage", label: "Subagent usage", description: "Cost curves and individual reply costs" }]

@@ -15,6 +15,7 @@ import {
 	type SpawnNotificationProcess,
 } from "../src/completion-notifier.js";
 import { DEFAULT_CONFIG, loadConfig, saveUserConfigPatch } from "../src/config.js";
+import { t } from "../src/i18n.js";
 import { createRailBar, railBarLines, type RailBarComponent } from "../src/rail-bar.js";
 import { AtelierEditor } from "../src/editor.js";
 import { type AtelierFooterComponent, createFooterComponent } from "../src/footer.js";
@@ -363,11 +364,14 @@ export default function atelierExtension(
 		try {
 			await lifecycleGuardedSavePatch(targetSession)(userConfigPath(), { showSidebarToolNames: next });
 			if (activeSession !== targetSession) return;
-			ctx.ui.notify(`Sidebar tool list ${next ? "expanded" : "collapsed"}`, "info");
+			ctx.ui.notify(
+				`${t(runtime.getConfig().language, "toolList")} ${t(runtime.getConfig().language, next ? "expanded" : "collapsed")}`,
+				"info",
+			);
 		} catch (error) {
 			if (activeSession !== targetSession) return;
 			ctx.ui.notify(
-				`Sidebar tool list changed for this session but could not be saved: ${errorMessage(error)}`,
+				`${t(runtime.getConfig().language, "toolListChangedNotSaved")}: ${errorMessage(error)}`,
 				"warning",
 			);
 		}
@@ -435,11 +439,11 @@ export default function atelierExtension(
 	async function openUsage(ctx: ExtensionContext, expected?: ActiveSession): Promise<void> {
 		const current = getActiveSession(ctx);
 		if (ctx.mode !== "tui" || !current || !enabled || (expected && current !== expected)) {
-			ctx.ui.notify("Enable Pi Atelier in a TUI session to view usage", "info");
+			ctx.ui.notify(t(current?.runtime.getConfig().language ?? "en", "usageNeedsTui"), "info");
 			return;
 		}
 		if (!ctx.isProjectTrusted()) {
-			ctx.ui.notify("Subagent metadata requires a trusted project", "info");
+			ctx.ui.notify(t(current.runtime.getConfig().language, "usageNeedsTrust"), "info");
 			return;
 		}
 		await current.runtime.refreshSubagentUsage();
@@ -448,6 +452,7 @@ export default function atelierExtension(
 			ctx,
 			current.runtime.getState().subagentUsage ?? emptySubagentUsage(),
 			current.runtime.getConfig().currencyDecimals,
+			current.runtime.getConfig().language,
 			current.overlayLifetime,
 		);
 	}
@@ -646,8 +651,10 @@ export default function atelierExtension(
 	}
 
 	type CommandHandler = (ctx: ExtensionContext, args: readonly string[]) => Promise<void> | void;
-	const usage = (ctx: ExtensionContext, syntax: string): void =>
-		ctx.ui.notify(`Usage: /atelier ${syntax}`, "warning");
+	const usage = (ctx: ExtensionContext, syntax: string): void => {
+		const language = activeSession?.runtime.getConfig().language ?? "en";
+		ctx.ui.notify(`${t(language, "usageCommand")} ${syntax}`, "warning");
+	};
 	const isOnOff = (value: string | undefined): boolean =>
 		value === undefined || value === "on" || value === "off";
 	const setPanelPlacement = (ctx: ExtensionContext, placement: "right" | "top"): void => {
@@ -661,7 +668,10 @@ export default function atelierExtension(
 		if (enabled && placement === "right") current.sidebar.show();
 		else current.sidebar.hide();
 		requestAllRenders(current);
-		ctx.ui.notify(`Panel placement: ${placement}`, "info");
+		ctx.ui.notify(
+			`${t(current.runtime.getConfig().language, "placement")}: ${t(current.runtime.getConfig().language, placement)}`,
+			"info",
+		);
 	};
 	const toggleRailSection = (ctx: ExtensionContext, id: string): void => {
 		const current = requireActiveSession(ctx);
@@ -678,7 +688,7 @@ export default function atelierExtension(
 		});
 		requestAllRenders(current);
 		ctx.ui.notify(
-			`${id.toUpperCase()} ${isSectionExpanded(sectionExpansion, id) ? "expanded" : "collapsed"}`,
+			`${t(config.language, id)} ${t(config.language, isSectionExpanded(sectionExpansion, id) ? "expanded" : "collapsed")}`,
 			"info",
 		);
 	};
@@ -734,7 +744,7 @@ export default function atelierExtension(
 				}
 				scrollTodos(current, action ?? "top");
 				ctx.ui.notify(
-					`TODOs ${current.todos.length === 0 ? 0 : current.todoOffset + 1}/${current.todos.length}`,
+					`${t(current.runtime.getConfig().language, "todosLabel")} ${current.todos.length === 0 ? 0 : current.todoOffset + 1}/${current.todos.length}`,
 					"info",
 				);
 			},
@@ -749,17 +759,17 @@ export default function atelierExtension(
 			},
 			sidebar: async (ctx, [sidebarAction, ...extra]) => {
 				if (ctx.mode !== "tui") {
-					ctx.ui.notify("Pi Atelier sidebar requires TUI mode", "warning");
+					ctx.ui.notify(t(activeSession?.runtime.getConfig().language ?? "en", "sidebarNeedsTui"), "warning");
 					return;
 				}
 				const current = requireActiveSession(ctx);
 				if (!current) return;
 				if (current.runtime.getConfig().panelPlacement === "top") {
-					ctx.ui.notify("Sidebar is hidden while panel placement is top", "info");
+					ctx.ui.notify(t(current.runtime.getConfig().language, "sidebarHiddenPlacement"), "info");
 					return;
 				}
 				if (!enabled && sidebarAction !== "off") {
-					ctx.ui.notify("Enable Pi Atelier with /atelier enable before showing its sidebar", "info");
+					ctx.ui.notify(t(current.runtime.getConfig().language, "enableBeforeShowing"), "info");
 					return;
 				}
 				if (sidebarAction === "tools") {
@@ -784,7 +794,10 @@ export default function atelierExtension(
 				else if (sidebarAction === "on") current.sidebar.show();
 				else if (sidebarAction === "off") current.sidebar.hide();
 				else current.sidebar.toggle();
-				ctx.ui.notify(`Sidebar: ${sidebarStatusLabel(current.sidebar.getStatus())}`, "info");
+				ctx.ui.notify(
+					`${t(current.runtime.getConfig().language, "sidebar")}: ${sidebarStatusLabel(current.sidebar.getStatus(), true, current.runtime.getConfig().language)}`,
+					"info",
+				);
 			},
 			disable: (ctx) => {
 				const current = requireActiveSession(ctx);
@@ -931,6 +944,7 @@ export default function atelierExtension(
 		const completionNotifier = createCompletionNotifier({
 			isEnabled: () => enabled && isPublished() && runtime.getConfig().completionNotifications,
 			getNerdFont: () => runtime.getConfig().nerdFont,
+			getLanguage: () => runtime.getConfig().language,
 			...(dependencies.notificationPlatform === undefined
 				? {}
 				: { platform: dependencies.notificationPlatform }),

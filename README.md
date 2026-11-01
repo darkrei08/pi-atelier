@@ -164,7 +164,7 @@ Pi supports one custom footer and one custom editor at a time. Extension load or
 | User | `~/.pi/agent/pi-atelier.json` |
 | Project (trusted only) | `<project>/.pi/pi-atelier.json` |
 
-Project settings override user settings, and session changes override both. Font mode, footer, sidebar startup, sidebar width, notification preferences, and the prefill provider allow-list are user-only.
+Project settings override user settings, and session changes override both. Font mode, footer, sidebar startup, sidebar width, notification preferences, and the prefill provider allow-list are user-only. The interface defaults to English. Set `language` to `"auto"`, `"en"`, or `"it"`; `auto` checks `LC_ALL`, then `LC_MESSAGES`, then `LANG`, and falls back to English for unknown or unset locales.
 
 ```json
 {
@@ -174,6 +174,7 @@ Project settings override user settings, and session changes override both. Font
   "toggleShortcut": "",
   "density": "comfortable",
   "sourcePanelPlacement": "right",
+  "language": "en",
   "headerRailRows": 2,
   "railTopHeight": 6,
   "contextWarning": 70,

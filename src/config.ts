@@ -44,6 +44,7 @@ export const DEFAULT_CONFIG: AtelierConfig = {
 	currencyDecimals: 3,
 	showSidebarToolNames: false,
 	panelPlacement: "right",
+	language: "en",
 	headerRailRows: 2,
 	railTopHeight: 6,
 	sectionExpansion: {},
@@ -340,6 +341,11 @@ function applyNonDisplay(
 		if (input.sourcePanelPlacement === "right" || input.sourcePanelPlacement === "top")
 			config.panelPlacement = input.sourcePanelPlacement;
 		else warnings.push(invalidEnum("sourcePanelPlacement", input.sourcePanelPlacement));
+	}
+	if ("language" in input) {
+		const language = input.language;
+		if (language === "auto" || language === "en" || language === "it") config.language = language;
+		else warnings.push(invalidEnum("language", language));
 	}
 	if ("headerRailRows" in input) {
 		if (

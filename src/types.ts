@@ -3,6 +3,7 @@ import type { BUILTIN_SIDEBAR_PANEL_IDS } from "./sidebar-panels.js";
 import type { PrefillView } from "./prefill.js";
 import type { SubagentUsageSnapshot } from "./subagent-usage.js";
 import type { WorkspacePulseData } from "./workspace-pulse.js";
+import type { LanguageSetting } from "./i18n.js";
 
 export type { PrefillView };
 export type TemplateName = (typeof TEMPLATE_NAMES)[number];
@@ -79,9 +80,11 @@ export interface DisplayValue {
 }
 
 export type PanelPlacement = "right" | "top";
+export type { Language, LanguageSetting } from "./i18n.js";
 
 export interface AtelierConfig extends DisplaySettings {
 	panelPlacement: PanelPlacement;
+	language: LanguageSetting;
 	headerRailRows: number;
 	railTopHeight: number;
 	sectionExpansion: Partial<Record<BuiltinSidebarPanelId, boolean>>;

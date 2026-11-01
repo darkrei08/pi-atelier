@@ -1,5 +1,6 @@
 import { visibleWidth } from "@earendil-works/pi-tui";
 import { asciiGlyphText } from "./glyphs.js";
+import { PANEL_KEYS, panelIdForTitle, t } from "./i18n.js";
 import { createPalette, type PaletteRole, type ThemeLike } from "./palette.js";
 import { FOOTER_OWNED_SECTIONS, SECTION_ROLES } from "./header-rail.js";
 import { renderPanelCard } from "./panel-card.js";
@@ -44,8 +45,8 @@ export function railStripLines(
 					: SECTION_ROLES[id];
 		if (!role) return [];
 		const expanded = isSectionExpanded(expansion, id);
-		const summary = sectionSummary(snapshot, id);
-		const details = expanded ? sectionDetailRows(snapshot, id) : [];
+		const summary = sectionSummary(snapshot, id, config.language);
+		const details = expanded ? sectionDetailRows(snapshot, id, config.language) : [];
 		if (expanded && !summary && details.length === 0) return [];
 		return [{ id, role, expanded, summary, details }];
 	});
@@ -81,7 +82,7 @@ export function railStripLines(
 	const bodyLimit = cardHeight - 2;
 	const palette = createPalette(theme, isColorEnabled());
 	const cards = visibleSections.map(({ id, role, expanded, summary, details }) => {
-		const label = `${expanded ? "" : config.nerdFont ? "▸ " : "[+] "}${id.toUpperCase()}`;
+		const label = `${expanded ? "" : config.nerdFont ? "▸ " : "[+] "}${t(config.language, id)}`;
 		const rawRows = expanded ? details : [summary];
 		const content = rawRows.map((line) =>
 			palette.paint("primary", sanitizeInline(config.nerdFont ? line : asciiGlyphText(line, "headerRail"))),
@@ -123,10 +124,12 @@ export function railCardAt(
 ): BuiltinSidebarPanelId | undefined {
 	if (!Number.isInteger(row) || !Number.isInteger(column) || row < 0 || column < 0) return undefined;
 	const top = stripTerminalSequences(rows[0] ?? "");
-	const titlePattern = /(?:AGENT|ACTIVITY|ALERTS|TODOS|CONTEXT|WORKSPACE|USAGE|SUBAGENTS|TOOLS)\b/g;
+	const titles = PANEL_KEYS.flatMap((key) => [t("en", key), t("it", key)]);
+	const titlePattern = new RegExp(`(?:${titles.join("|")})(?=\\s|$)`, "g");
 	for (const match of top.matchAll(titlePattern)) {
 		const titleStart = match.index ?? 0;
-		const id = match[0].toLowerCase() as BuiltinSidebarPanelId;
+		const id = panelIdForTitle(match[0]);
+		if (!id) continue;
 		let start = Math.max(top.lastIndexOf("╭", titleStart), top.lastIndexOf("+", titleStart));
 		if (start < 0) continue;
 		const topRight = Math.min(

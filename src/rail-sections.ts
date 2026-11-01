@@ -1,4 +1,5 @@
 import { formatTokens } from "./metrics.js";
+import { t } from "./i18n.js";
 import { surfaceGlyphs } from "./glyphs.js";
 import { sanitizeInline } from "./text.js";
 import type { SidebarSnapshot } from "./sidebar.js";
@@ -19,7 +20,11 @@ export function toggleSection(
 
 const ALERT_STATUS = /\b(error|failed?|failure|offline|unavailable|warn(?:ing)?|blocked|degraded)\b/i;
 
-export function sectionDetailRows(snapshot: SidebarSnapshot, id: string): string[] {
+export function sectionDetailRows(
+	snapshot: SidebarSnapshot,
+	id: string,
+	language: "auto" | "en" | "it" = "en",
+): string[] {
 	const metrics = snapshot.metrics;
 	const rows: string[] = [];
 	const add = (key: string, value: string | number | undefined | null) => {
@@ -29,16 +34,16 @@ export function sectionDetailRows(snapshot: SidebarSnapshot, id: string): string
 
 	switch (id) {
 		case "agent":
-			add("Model", snapshot.modelId);
-			add("Provider", snapshot.provider);
-			add("Thinking", snapshot.thinkingLevel);
+			add(t(language, "model"), snapshot.modelId);
+			add(t(language, "provider"), snapshot.provider);
+			add(t(language, "thinking"), snapshot.thinkingLevel);
 			if (snapshot.modelId || snapshot.provider)
-				add("Billing", metrics.subscription ? "Subscription" : "Metered");
+				add(t(language, "billing"), t(language, metrics.subscription ? "subscription" : "metered"));
 			break;
 		case "context":
 			if (metrics.contextTokens !== null) {
 				add(
-					"Tokens / window",
+					t(language, "tokensWindow"),
 					`${formatTokens(metrics.contextTokens)} / ${formatTokens(metrics.contextWindow)}`,
 				);
 			}
@@ -47,21 +52,21 @@ export function sectionDetailRows(snapshot: SidebarSnapshot, id: string): string
 			break;
 		case "workspace": {
 			const pulse = snapshot.workspacePulse;
-			add("Branch", snapshot.branch);
+			add(t(language, "branch"), snapshot.branch);
 			if ("data" in pulse) {
 				const { trackedFiles, untrackedFiles } = pulse.data.snapshot;
-				add("Changed files", trackedFiles + untrackedFiles);
+				add(t(language, "changedFiles"), trackedFiles + untrackedFiles);
 				add("Dirty", pulse.status === "clean" ? "no" : "yes");
 			}
 			break;
 		}
 		case "usage":
 			if (metrics.usageAvailable) {
-				add("Input", formatTokens(metrics.input));
-				add("Output", formatTokens(metrics.output));
-				add("Cache read", formatTokens(metrics.cacheRead));
+				add(t(language, "input"), formatTokens(metrics.input));
+				add(t(language, "output"), formatTokens(metrics.output));
+				add(t(language, "cacheRead"), formatTokens(metrics.cacheRead));
 			}
-			if (metrics.costAvailable) add("Cost", `$${Math.max(0, metrics.cost).toFixed(2)}`);
+			if (metrics.costAvailable) add(t(language, "cost"), `$${Math.max(0, metrics.cost).toFixed(2)}`);
 			break;
 		case "todos": {
 			const glyphs = surfaceGlyphs("sidebar", true);
@@ -79,12 +84,12 @@ export function sectionDetailRows(snapshot: SidebarSnapshot, id: string): string
 		case "workflows": {
 			const usage = snapshot.subagentUsage;
 			for (const run of usage?.runs ?? []) add(run.agent, "complete");
-			if (usage?.pending) add("Run phase", `running (${usage.pending})`);
+			if (usage?.pending) add(t(language, "working"), `running (${usage.pending})`);
 			break;
 		}
 		case "tools":
 			if (snapshot.availableToolCount > 0)
-				add("Active / available", `${snapshot.activeToolCount} / ${snapshot.availableToolCount}`);
+				add(t(language, "active"), `${snapshot.activeToolCount} / ${snapshot.availableToolCount}`);
 			break;
 		case "alerts":
 			for (const status of snapshot.extensionStatuses) {
@@ -93,7 +98,11 @@ export function sectionDetailRows(snapshot: SidebarSnapshot, id: string): string
 			}
 			break;
 		case "activity":
-			if (snapshot.runActivity.phase !== "idle") add("Run phase", snapshot.runActivity.phase);
+			if (snapshot.runActivity.phase !== "idle")
+				add(
+					t(language, "activity"),
+					snapshot.runActivity.phase === "running" ? t(language, "working") : t(language, "complete"),
+				);
 			if (snapshot.runActivity.completedCount || snapshot.runActivity.failedCount) {
 				add(
 					"Tools",
@@ -108,21 +117,28 @@ export function sectionDetailRows(snapshot: SidebarSnapshot, id: string): string
 	return rows.filter(Boolean);
 }
 
-export function sectionSummary(snapshot: SidebarSnapshot, id: string): string {
+export function sectionSummary(
+	snapshot: SidebarSnapshot,
+	id: string,
+	language: "auto" | "en" | "it" = "en",
+): string {
 	let summary: string;
 	switch (id) {
 		case "agent":
 			summary = [snapshot.modelId, snapshot.thinkingLevel].filter(Boolean).join(" · ");
 			break;
 		case "activity":
-			summary = snapshot.runActivity.phase === "idle" ? "" : snapshot.runActivity.phase;
+			summary =
+				snapshot.runActivity.phase === "idle"
+					? ""
+					: t(language, snapshot.runActivity.phase === "running" ? "working" : "complete");
 			break;
 		case "alerts": {
 			// Keep this severity match in sync with sidebar.ts statusAlerts().
 			const count = snapshot.extensionStatuses.filter((status) =>
 				ALERT_STATUS.test(sanitizeInline(status)),
 			).length;
-			summary = count ? `${count} alerts` : "";
+			summary = count ? `${count} ${t(language, "alerts").toLowerCase()}` : "";
 			break;
 		}
 		case "todos": {

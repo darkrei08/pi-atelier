@@ -1,6 +1,7 @@
 import { type Component, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { DEFAULT_CONFIG } from "./config.js";
 import { formatTokens } from "./metrics.js";
+import { t } from "./i18n.js";
 import { surfaceGlyphs } from "./glyphs.js";
 import { type AtelierPalette, createPalette, type PaletteRole, type ThemeLike } from "./palette.js";
 import { responsePerformanceValues } from "./run-activity.js";
@@ -153,8 +154,9 @@ function activityText(
 	workingDots: string,
 	compact: boolean,
 	nerdFont: boolean,
+	language: AtelierConfig["language"],
 ): string {
-	const fallback = state.activity.toUpperCase();
+	const fallback = t(language, state.activity);
 	const label = state.activity === "working" && !compact ? (state.workingLabel ?? fallback) : fallback;
 	const dots =
 		state.activity === "working" && !compact ? workingDots.padEnd(WORKING_DOT_FRAMES[0].length, " ") : "";
@@ -194,8 +196,8 @@ const SEGMENT_ITEMS: Record<SegmentId, (context: ItemContext) => FooterItem[]> =
 	activity: ({ state, palette, theme, workingDots, config }) => [
 		item(
 			"activity",
-			activityText(state, palette, theme, workingDots, false, config.nerdFont),
-			activityText(state, palette, theme, workingDots, true, config.nerdFont),
+			activityText(state, palette, theme, workingDots, false, config.nerdFont, config.language),
+			activityText(state, palette, theme, workingDots, true, config.nerdFont, config.language),
 		),
 	],
 	model: ({ state, palette, theme, symbols, config }) => {

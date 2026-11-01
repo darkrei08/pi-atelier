@@ -1,6 +1,7 @@
 import { MouseRegion, type TuiMouseEvent, visibleWidth } from "@earendil-works/pi-tui";
 import type { Component } from "@earendil-works/pi-tui";
 import { renderHeaderRail } from "./header-rail.js";
+import { PANEL_KEYS, panelIdForTitle, t } from "./i18n.js";
 import { railCardAt, railStripLines } from "./rail-strip.js";
 import type { ThemeLike } from "./palette.js";
 import type { SectionExpansion } from "./rail-sections.js";
@@ -27,8 +28,8 @@ export function railBarLines(
 	);
 }
 
-const SECTION_TITLE =
-	/(▾|▸|\[-\]|\[\+\]) (AGENT|ACTIVITY|ALERTS|TODOS|CONTEXT|WORKSPACE|USAGE|SUBAGENTS|TOOLS)\b/g;
+const titles = PANEL_KEYS.flatMap((key) => [t("en", key), t("it", key)]);
+const SECTION_TITLE = new RegExp(`(▾|▸|\\[-\\]|\\[\\+\\]) (${titles.join("|")})(?=\\s|$)`, "g");
 
 export function hitTestRail(
 	rows: readonly string[],
@@ -44,7 +45,7 @@ export function hitTestRail(
 	for (const match of text.matchAll(SECTION_TITLE)) {
 		const start = visibleWidth(text.slice(0, match.index));
 		const end = start + visibleWidth(match[0]);
-		if (column >= start && column < end) return match[2]!.toLowerCase() as BuiltinSidebarPanelId;
+		if (column >= start && column < end) return panelIdForTitle(match[2] ?? "");
 	}
 	return undefined;
 }
