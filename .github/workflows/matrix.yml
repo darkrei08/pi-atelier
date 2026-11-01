@@ -61,7 +61,7 @@ jobs:
             case "${ID} ${ID_LIKE:-}" in
               *alpine*) apk add --no-cache nodejs npm git curl xz bash >/dev/null ;;
               *arch*) pacman -Sy --noconfirm --needed nodejs npm git curl xz >/dev/null ;;
-              *fedora*|*rhel*|*centos*) dnf install -y -q git curl xz tar >/dev/null
+              *fedora*|*rhel*|*centos*) dnf install -y -q git xz tar >/dev/null
                 curl -fsSL "https://nodejs.org/dist/$NODE_VERSION/node-$NODE_VERSION-linux-x64.tar.xz" | tar -xJ -C /usr/local --strip-components=1 ;;
               *suse*) zypper -q -n install git curl xz tar >/dev/null
                 curl -fsSL "https://nodejs.org/dist/$NODE_VERSION/node-$NODE_VERSION-linux-x64.tar.xz" | tar -xJ -C /usr/local --strip-components=1 ;;
