@@ -5,6 +5,7 @@ import { EMPTY_RUN_ACTIVITY } from "../src/run-activity.js";
 import { buildSidebarSnapshot } from "../src/sidebar.js";
 import { createInertAtelierState } from "../src/state.js";
 import { createRailBar, hitTestRail, railBarLines } from "../src/rail-bar.js";
+import type { CompatMouseEvent, MouseRegionComponent } from "../src/pi-compat.js";
 import type { ThemeLike } from "../src/palette.js";
 
 const theme: ThemeLike = { fg: (_role, text) => text, bold: (text) => text };
@@ -160,9 +161,35 @@ describe("top card strip", () => {
 		expect(lines.every((line) => visibleWidth(line) <= 64 && !/\s$/u.test(line))).toBe(true);
 	});
 
+	it("renders without mouse support on hosts without MouseRegion", () => {
+		const onSectionClick = vi.fn();
+		const bar = createRailBar(() => ["▾ AGENT model"], onSectionClick, {});
+		bar.render(120);
+		expect(bar.render(120)).toEqual(["▾ AGENT model"]);
+		const mouseBar = bar as MouseRegionComponent;
+		mouseBar.handleMouse?.({ type: "click", button: "left", x: 2, y: 0 });
+		expect(mouseBar.handleMouse).toBeUndefined();
+		expect(onSectionClick).not.toHaveBeenCalled();
+	});
+
 	it("toggles once on click, not on press or release", () => {
 		const onSectionClick = vi.fn();
-		const bar = createRailBar(() => ["▾ AGENT model"], onSectionClick);
+		class FakeMouseRegion implements MouseRegionComponent {
+			constructor(
+				private readonly child: { render(width: number): string[]; invalidate(): void },
+				private readonly handle: (event: CompatMouseEvent) => unknown,
+			) {}
+			render(width: number) {
+				return this.child.render(width);
+			}
+			invalidate() {
+				this.child.invalidate();
+			}
+			handleMouse(event: CompatMouseEvent) {
+				return this.handle(event);
+			}
+		}
+		const bar = createRailBar(() => ["▾ AGENT model"], onSectionClick, { MouseRegion: FakeMouseRegion });
 		bar.render(120);
 		const event = (type: "press" | "release" | "click") => ({
 			type,
@@ -177,10 +204,11 @@ describe("top card strip", () => {
 			alt: false,
 			ctrl: false,
 		});
-		bar.handleMouse?.(event("press"));
-		bar.handleMouse?.(event("release"));
+		const mouseBar = bar as MouseRegionComponent;
+		mouseBar.handleMouse?.(event("press"));
+		mouseBar.handleMouse?.(event("release"));
 		expect(onSectionClick).not.toHaveBeenCalled();
-		bar.handleMouse?.(event("click"));
+		mouseBar.handleMouse?.(event("click"));
 		expect(onSectionClick).toHaveBeenCalledOnce();
 	});
 });

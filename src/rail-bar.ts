@@ -1,5 +1,7 @@
-import { MouseRegion, type TuiMouseEvent, visibleWidth } from "@earendil-works/pi-tui";
+import * as PiTui from "@earendil-works/pi-tui";
 import type { Component } from "@earendil-works/pi-tui";
+import { createMouseRegionComponent, type CompatMouseEvent } from "./pi-compat.js";
+import { visibleWidth } from "@earendil-works/pi-tui";
 import { renderHeaderRail } from "./header-rail.js";
 import { PANEL_KEYS, panelIdForTitle, t } from "./i18n.js";
 import { railCardAt, railStripLines } from "./rail-strip.js";
@@ -52,11 +54,12 @@ export function hitTestRail(
 
 export type RailBarComponent = Component & {
 	setRows(rows: number): void;
-};
+} & Partial<{ handleMouse(event: CompatMouseEvent): unknown }>;
 
 export function createRailBar(
 	render: (width: number, rows: number) => string[],
 	onSectionClick?: (id: BuiltinSidebarPanelId) => void,
+	hostModule: unknown = PiTui,
 ): RailBarComponent {
 	let rows = 0;
 	let renderedLines: string[] = [];
@@ -67,7 +70,7 @@ export function createRailBar(
 		},
 		invalidate() {},
 	};
-	const region = new MouseRegion(child, (event: TuiMouseEvent) => {
+	const region = createMouseRegionComponent(hostModule, child, (event: CompatMouseEvent) => {
 		if (event.button !== "left" || !["press", "release", "click"].includes(event.type)) return undefined;
 		const id = hitTestRail(renderedLines, event.y, event.x);
 		if (!id) return undefined;
@@ -78,9 +81,7 @@ export function createRailBar(
 		render(width) {
 			return region.render(width);
 		},
-		handleMouse(event) {
-			return region.handleMouse(event);
-		},
+		...(region.handleMouse ? { handleMouse: (event: CompatMouseEvent) => region.handleMouse?.(event) } : {}),
 		setRows(nextRows) {
 			rows = nextRows;
 		},

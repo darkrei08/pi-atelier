@@ -11,6 +11,7 @@ import {
 	parseSgrMouseEvent,
 } from "../src/split-pane.js";
 import { stableTuiReference } from "./helpers/stable-tui-reference.js";
+import type { CompatMouseEvent, MouseRegionComponent } from "../src/pi-compat.js";
 import { createRailBar } from "../src/rail-bar.js";
 
 function harness(columns = 120) {
@@ -512,10 +513,25 @@ describe("Pi 0.84 split layout", () => {
 		expect((renderer as unknown as { layoutRoot: unknown }).layoutRoot).toBeInstanceOf(HStack);
 	});
 
-	it("routes a rail title click once through the fullscreen component", () => {
+	it("toggles a rail title click in the fullscreen layout", () => {
 		const renderer = new TuiAltScreen({ columns: 120, rows: 36, write: vi.fn() } as never);
 		const toggle = vi.fn();
-		const bar = createRailBar(() => ["▾ AGENT model"], toggle);
+		class FakeMouseRegion implements MouseRegionComponent {
+			constructor(
+				private readonly child: { render(width: number): string[]; invalidate(): void },
+				private readonly handle: (event: CompatMouseEvent) => unknown,
+			) {}
+			render(width: number) {
+				return this.child.render(width);
+			}
+			invalidate() {
+				this.child.invalidate();
+			}
+			handleMouse(event: CompatMouseEvent) {
+				return this.handle(event);
+			}
+		}
+		const bar = createRailBar(() => ["▾ AGENT model"], toggle, { MouseRegion: FakeMouseRegion });
 		const split = disposeAfterTest(createSplitPaneController({ topBar: bar }));
 		renderer.setLayoutRoot({ render: () => ["transcript"], invalidate() {} });
 		split.attach(stableTuiReference(() => renderer));
@@ -534,9 +550,10 @@ describe("Pi 0.84 split layout", () => {
 			alt: false,
 			ctrl: false,
 		});
-		topRoot.handleMouse(event("press"));
-		topRoot.handleMouse(event("release"));
-		topRoot.handleMouse(event("click"));
+		const mouseBar = bar as MouseRegionComponent;
+		mouseBar.handleMouse?.(event("press"));
+		mouseBar.handleMouse?.(event("release"));
+		mouseBar.handleMouse?.(event("click"));
 
 		expect(toggle).toHaveBeenCalledOnce();
 		expect(toggle).toHaveBeenCalledWith("agent");

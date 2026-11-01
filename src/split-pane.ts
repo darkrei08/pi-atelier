@@ -1,4 +1,4 @@
-import type { Component, OverlayHandle, OverlayOptions, TUI, TuiMouseEvent } from "@earendil-works/pi-tui";
+import type { Component, OverlayHandle, OverlayOptions, TUI } from "@earendil-works/pi-tui";
 import {
 	compositeTuiLine,
 	HStack,
@@ -13,6 +13,8 @@ import {
 	type ImageCompositorBinding,
 } from "./image-compositor.js";
 import { clamp } from "./text.js";
+import type { CompatMouseEvent } from "./pi-compat.js";
+import { overlayHandleBounds, type MouseRegionComponent } from "./pi-compat.js";
 import type { RailBarComponent } from "./rail-bar.js";
 
 const ENABLE_MOUSE = "\u001b[?1002h\u001b[?1006h";
@@ -245,7 +247,7 @@ export function createSplitPaneController(options: SplitPaneControllerOptions = 
 		]);
 
 	const createFullscreenTopRoot = (originalRoot: Component, lines: number): Component => {
-		const bar: Component = {
+		const bar: MouseRegionComponent = {
 			render(width) {
 				if (!topBar || !tui) return [];
 				const rows = tui.terminal.rows;
@@ -254,7 +256,7 @@ export function createSplitPaneController(options: SplitPaneControllerOptions = 
 				if (nextLines.length !== lines) syncFullscreenLayoutAdapter();
 				return nextLines;
 			},
-			handleMouse(event: TuiMouseEvent) {
+			handleMouse(event: CompatMouseEvent) {
 				return topBar?.handleMouse?.(event);
 			},
 			invalidate() {
@@ -436,7 +438,7 @@ export function createSplitPaneController(options: SplitPaneControllerOptions = 
 						}
 					},
 					isHidden: () => handle.isHidden(),
-					getBounds: () => handle.getBounds(),
+					getBounds: () => overlayHandleBounds(handle),
 					focus: () => handle.focus(),
 					unfocus: (options) => handle.unfocus(options),
 					isFocused: () => handle.isFocused(),
