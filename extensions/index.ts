@@ -17,7 +17,7 @@ import {
 import { DEFAULT_CONFIG, loadConfig, saveUserConfigPatch } from "../src/config.js";
 import { t } from "../src/i18n.js";
 import { createRailBar, railBarLines, type RailBarComponent } from "../src/rail-bar.js";
-import { isReservedShortcut, keyIdentity } from "../src/shortcuts.js";
+import { isReservedShortcut } from "../src/shortcuts.js";
 import { AtelierEditor } from "../src/editor.js";
 import { type AtelierFooterComponent, createFooterComponent } from "../src/footer.js";
 import { createImageCompositorBinding } from "../src/image-compositor.js";
@@ -170,7 +170,6 @@ interface LifecycleToken {
 }
 
 const NOT_ACTIVE = "Pi Atelier is not active in this session";
-const RESIZE_SHORTCUT = "ctrl+shift+r";
 
 const userConfigPath = (): string => join(getAgentDir(), "pi-atelier.json");
 
@@ -831,11 +830,6 @@ export default function atelierExtension(
 		}
 		current.sidebar.beginResize();
 	};
-	pi.registerShortcut(RESIZE_SHORTCUT, {
-		description: "Resize Pi Atelier sidebar",
-		handler: resizeSidebar,
-	});
-
 	/** Configured shortcuts are read from the first loaded config; Pi cannot unregister shortcuts. */
 	function registerCustomShortcuts(ctx: ExtensionContext, config: AtelierConfig): void {
 		if (customShortcutsRegistered) return;
@@ -854,15 +848,13 @@ export default function atelierExtension(
 				);
 			}
 		}
-		if (keyIdentity(resizeShortcut) !== keyIdentity(RESIZE_SHORTCUT)) {
-			if (isReservedShortcut(resizeShortcut, [DEFAULT_CONFIG.shortcut, shortcut])) {
-				ctx.ui.notify(`resizeShortcut "${resizeShortcut}" is already an Atelier shortcut`, "warning");
-			} else {
-				pi.registerShortcut(resizeShortcut as KeyId, {
-					description: "Resize Pi Atelier sidebar",
-					handler: resizeSidebar,
-				});
-			}
+		if (isReservedShortcut(resizeShortcut, [DEFAULT_CONFIG.shortcut, shortcut])) {
+			ctx.ui.notify(`resizeShortcut "${resizeShortcut}" is already an Atelier shortcut`, "warning");
+		} else {
+			pi.registerShortcut(resizeShortcut as KeyId, {
+				description: "Resize Pi Atelier sidebar",
+				handler: resizeSidebar,
+			});
 		}
 		if (!toggleShortcut) return;
 		if (isReservedShortcut(toggleShortcut, [DEFAULT_CONFIG.shortcut, shortcut, resizeShortcut])) {

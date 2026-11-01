@@ -191,7 +191,7 @@ Project settings override user settings, and session changes override both. Font
 }
 ```
 
-`resizeShortcut` changes the Sidebar resize key; it defaults to `ctrl+shift+r`. A blank value warns and keeps that default. Keys matching `shortcut` or the built-in `f6` binding are rejected with a warning, and the default resize key remains available. Set an alternative such as `"alt+r"` and run `/reload`.
+`resizeShortcut` changes the Sidebar resize key; it defaults to `ctrl+shift+r`. Only the configured key is registered, so overriding it does not register the default key. A blank value warns and keeps that default. Keys matching `shortcut` or the built-in `f6` binding are rejected with a warning. Set an alternative such as `"alt+r"` and run `/reload`.
 
 `toggleShortcut` binds a key that shows or hides the Sidebar directly, like `/atelier sidebar`. It is empty (no binding) by default; set a key such as `"ctrl+shift+b"` and run `/reload`. Unlike `resizeShortcut`, a blank `toggleShortcut` means no binding.
 

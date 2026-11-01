@@ -145,7 +145,7 @@ describe("extension registration", () => {
 				`toggleShortcut "${key}" is already an Atelier shortcut`,
 				"warning",
 			);
-			expect(h.shortcuts).toEqual(["f6", "ctrl+shift+r", "alt+x"]);
+			expect(h.shortcuts).toEqual(["f6", "alt+x", "ctrl+shift+r"]);
 		},
 	);
 
@@ -240,6 +240,15 @@ describe("extension registration", () => {
 		await start(h);
 		await command(h, "sidebar on");
 		expect(h.overlays[0]?.layout()).toMatchObject({ width: 44, nonCapturing: true });
+	});
+
+	it("registers only the configured resize shortcut", async () => {
+		const h = harness();
+		await withPersistedUserConfig({ resizeShortcut: "ctrl+shift+w" }, async () => {
+			await start(h);
+			expect(h.shortcuts).toContain("ctrl+shift+w");
+			expect(h.shortcuts).not.toContain("ctrl+shift+r");
+		});
 	});
 
 	it("enters Resize mode with Ctrl+Shift+R only for the active visible sidebar", async () => {
