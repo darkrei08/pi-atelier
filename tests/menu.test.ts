@@ -288,6 +288,7 @@ describe("Control Center presentation", () => {
 			"Panel placement: right",
 			...DEFAULT_CONFIG.sidebarPanelLayout.map((entry) => `${entry.id.toUpperCase()}: Expanded`),
 			"Completion notifications: On",
+			"Prefill progress: On",
 			"Sidebar tool list: Collapsed",
 			"Back",
 		]);

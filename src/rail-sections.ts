@@ -1,4 +1,5 @@
 import { formatTokens } from "./metrics.js";
+import { formatPrefillRows, SIDEBAR_PREFILL_VIEWS, type PrefillView } from "./prefill.js";
 import { t } from "./i18n.js";
 import { surfaceGlyphs } from "./glyphs.js";
 import { sanitizeInline } from "./text.js";
@@ -24,6 +25,7 @@ export function sectionDetailRows(
 	snapshot: SidebarSnapshot,
 	id: string,
 	language: "auto" | "en" | "it" = "en",
+	prefillViews: readonly PrefillView[] = SIDEBAR_PREFILL_VIEWS,
 ): string[] {
 	const metrics = snapshot.metrics;
 	const rows: string[] = [];
@@ -39,6 +41,16 @@ export function sectionDetailRows(
 			add(t(language, "thinking"), snapshot.thinkingLevel);
 			if (snapshot.modelId || snapshot.provider)
 				add(t(language, "billing"), t(language, metrics.subscription ? "subscription" : "metered"));
+			break;
+		case "prefill":
+			if (snapshot.prefill) {
+				rows.push(`${Math.round(snapshot.prefill.percent * 100)}%`);
+				for (const row of formatPrefillRows(snapshot.prefill, prefillViews)) {
+					const key =
+						row.label === "Tokens" ? "tokens" : row.label === "First token" ? "firstToken" : "speed";
+					add(t(language, key), row.value);
+				}
+			}
 			break;
 		case "context":
 			if (metrics.contextTokens !== null) {
@@ -147,6 +159,9 @@ export function sectionSummary(
 			summary = `${done}/${snapshot.todos.length}`;
 			break;
 		}
+		case "prefill":
+			summary = snapshot.prefill ? `${Math.round(snapshot.prefill.percent * 100)}%` : "";
+			break;
 		case "context": {
 			const { contextPercent, contextTokens, contextWindow } = snapshot.metrics;
 			if (contextPercent === null || contextTokens === null) return "";

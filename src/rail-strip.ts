@@ -46,7 +46,7 @@ export function railStripLines(
 		if (!role) return [];
 		const expanded = isSectionExpanded(expansion, id);
 		const summary = sectionSummary(snapshot, id, config.language);
-		const details = expanded ? sectionDetailRows(snapshot, id, config.language) : [];
+		const details = expanded ? sectionDetailRows(snapshot, id, config.language, config.prefillViews) : [];
 		if (expanded && !summary && details.length === 0) return [];
 		return [{ id, role, expanded, summary, details }];
 	});

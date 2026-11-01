@@ -21,6 +21,7 @@ export const SECTION_ROLES: Partial<Record<BuiltinSidebarPanelId, PaletteRole>> 
 	context: "context",
 	workspace: "accent",
 	usage: "chartGold",
+	prefill: "working",
 	subagents: "output",
 	tools: "chartPink",
 };
@@ -53,7 +54,7 @@ export function renderHeaderRail(
 		const rawSummary = expanded ? sectionSummary(snapshot, id, config.language) : "";
 		const summary = config.nerdFont ? rawSummary : asciiGlyphText(rawSummary, "headerRail");
 		const details = expanded
-			? sectionDetailRows(snapshot, id, config.language).map((line) =>
+			? sectionDetailRows(snapshot, id, config.language, config.prefillViews).map((line) =>
 					config.nerdFont ? line : asciiGlyphText(line, "headerRail"),
 				)
 			: [];

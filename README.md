@@ -53,7 +53,7 @@ Plain text mode works with any monospace font, renders the interface using ASCII
 | Surface | Threshold | Behavior |
 | --- | --- | --- |
 | Core footer | Below 76 columns or 20 rows | One row with Activity and Context only |
-| Sidebar split | At least 104 columns (76 main + 28 sidebar) and 20 rows | Keeps at least 76 columns for the main pane |
+| Sidebar split | At least 104 columns (76 main + 28 sidebar) | Keeps at least 76 columns for the main pane; remains available at short heights |
 | Top strip | At least 64 columns and 20 rows | Existing compact rail gates remain in effect |
 | Core-only surface | 6 rows or fewer | No editor frame, top strip, or split sidebar; one Activity + Context footer row |
 | Editor frame | 7 or more rows | Omits frame chrome at 6 rows or fewer |

@@ -696,15 +696,13 @@ describe("sidebar overlay sizing", () => {
 		expect(h.tui.render(120)).toEqual(["base:120"]);
 	});
 
-	it("gates the sidebar below 20 rows", () => {
-		const h = concreteHarness(120, 19);
+	it("keeps sidebar visibility independent of the top rail row gate", () => {
+		const h = concreteHarness(120);
+		Object.assign(h.tui.terminal, { rows: 19 });
 		const split = disposeAfterTest(createSplitPaneController());
 		split.attach(h.tui);
 		split.show();
 
-		expect(split.getStatus().presentation).toBe("too-narrow");
-		expect(h.tui.render(120)).toEqual(["base:120"]);
-		Object.assign(h.tui.terminal, { rows: 20 });
 		expect(split.getStatus().presentation).toBe("shown");
 		expect(h.tui.render(120)).toEqual([`base:${120 - DEFAULT_SIDEBAR_WIDTH}`]);
 	});
