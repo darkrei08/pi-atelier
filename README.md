@@ -46,7 +46,7 @@ Start Pi and open the control center with `/atelier` or **F6** (**Fn+F6** on key
 
 ### Terminal font
 
-Plain text mode works with any monospace font and keeps colors, metrics, and the responsive layout. The default Nerd Font mode needs a Nerd Font, such as one from [nerdfonts.com](https://www.nerdfonts.com), selected in your terminal. Switch in **Settings → Font mode**.
+Plain text mode is the default because terminals without a Nerd Font render its icons as boxes; it works with any monospace font and keeps colors, metrics, and the responsive layout. Set `"nerdFont": true` to restore Nerd Font icons; the terminal font must cover those glyphs, and a Symbols Nerd Font Mono fallback is sufficient.
 
 ## Features
 

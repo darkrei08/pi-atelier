@@ -12,6 +12,7 @@ import {
 	command,
 	renderOverlayText,
 	mountComposer,
+	nerdFontConfig,
 	withPersistedUserConfig,
 } from "./helpers/extension.js";
 
@@ -69,7 +70,7 @@ describe("extension registration", () => {
 		{ columns: 20, rows: 24 },
 		{ columns: 22, rows: 24 },
 	])("keeps complete context in the footer at $columns×$rows", async ({ columns, rows }) => {
-		const h = harness();
+		const h = harness("tui", "linux", false, nerdFontConfig);
 		await start(h);
 		const { tui, editor, footer } = mountComposer(h);
 		try {

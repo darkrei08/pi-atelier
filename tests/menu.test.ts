@@ -145,7 +145,7 @@ describe("Control Center presentation", () => {
 			"settings",
 			[
 				"Display: editorial",
-				"Font mode: Nerd Font",
+				"Font mode: Plain text",
 				"Atelier footer: On",
 				"Sidebar on startup: On",
 				"Completion notifications: On",

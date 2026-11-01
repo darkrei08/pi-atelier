@@ -12,6 +12,9 @@ import { loadConfig as loadAtelierConfig, resolveConfig } from "../../src/config
 import { plainTheme, stripAnsi } from "./render.js";
 
 let persistedConfig = false;
+export const nerdFontConfig: Pick<AtelierExtensionDependencies, "loadConfig"> = {
+	loadConfig: async () => resolveConfig({ user: { nerdFont: true } }),
+};
 export const loadTestConfig: typeof loadAtelierConfig = (options) =>
 	persistedConfig ? loadAtelierConfig(options) : Promise.resolve(resolveConfig({}));
 

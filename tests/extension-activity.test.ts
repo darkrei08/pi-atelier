@@ -11,6 +11,7 @@ import {
 	queueWorkspacePulseInspection,
 	execResult,
 	mountComposer,
+	nerdFontConfig,
 } from "./helpers/extension.js";
 
 describe("extension activity", () => {
@@ -101,7 +102,7 @@ describe("extension activity", () => {
 	});
 
 	it("forwards run and turn events into sidebar activity without putting tool history in the footer", async () => {
-		const h = harness();
+		const h = harness("tui", "linux", false, nerdFontConfig);
 		await start(h);
 		await command(h, "sidebar on");
 
@@ -137,7 +138,7 @@ describe("extension activity", () => {
 	it("forwards provider timing and streamed throughput to both footer and sidebar", async () => {
 		vi.useFakeTimers();
 		vi.setSystemTime(1_000);
-		const h = harness("tui", "linux", true);
+		const h = harness("tui", "linux", true, nerdFontConfig);
 		await start(h);
 		await h.dispatch("agent_start", { type: "agent_start" });
 		const opening = command(h, "display");
@@ -367,7 +368,7 @@ describe("extension activity", () => {
 		}
 
 		it("keeps the error state after a run ends in a provider error", async () => {
-			const h = harness();
+			const h = harness("tui", "linux", false, nerdFontConfig);
 			await start(h);
 
 			expect(await settledStatus(h, providerError)).toContain("× ERROR");
@@ -375,7 +376,7 @@ describe("extension activity", () => {
 		});
 
 		it("settles to ready when the user aborted the run", async () => {
-			const h = harness();
+			const h = harness("tui", "linux", false, nerdFontConfig);
 			await start(h);
 			const controller = new AbortController();
 			controller.abort();
@@ -385,7 +386,7 @@ describe("extension activity", () => {
 		});
 
 		it("settles to ready after a recovered tool failure", async () => {
-			const h = harness();
+			const h = harness("tui", "linux", false, nerdFontConfig);
 			await start(h);
 
 			const status = await settledStatus(h, {

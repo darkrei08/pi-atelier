@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Default to Plain text mode to avoid Nerd Font icons rendering as boxes in unsupported terminals; set `"nerdFont": true` to opt back into Nerd Font icons.
+
 ## 0.18.0 — 2026-10-31
 
 - Show a temporary Sidebar **Prefill** panel while a local model is still reading a long prompt: a bar over the uncached prompt tokens, the token counts, the reading speed, and an estimate of how long until the first token. A long prefill used to look exactly like a hang. The panel is present only while prefilling and reserves nothing when it is absent. Configure with `prefillEnabled`, `prefillViews`, and the user-only `prefillProviders` allow-list, or toggle it in Control Center → Settings. Needs Pi 0.99 or newer to report progress; on an older Pi the panel never appears.

@@ -16,13 +16,14 @@ import {
 	renderOverlayText,
 	mountComposer,
 	renderFooter,
+	nerdFontConfig,
 	queueWorkspacePulseInspection,
 	execResult,
 } from "./helpers/extension.js";
 
 describe("extension session", () => {
 	it("moves session identity back to the footer while a selector replaces the editor", async () => {
-		const h = harness();
+		const h = harness("tui", "linux", false, nerdFontConfig);
 		await start(h);
 		const { editor, footer } = mountComposer(h);
 		try {
