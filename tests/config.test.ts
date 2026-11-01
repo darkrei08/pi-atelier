@@ -307,9 +307,12 @@ describe("configuration files", () => {
 		});
 	});
 
+	it("defaults to Plain text glyphs so a terminal without a Nerd Font stays readable", () => {
+		expect(resolveConfig({}).config.nerdFont).toBe(false);
+	});
+
 	it("defaults prefill to a llama.cpp-only panel with four distinct views", () => {
 		expect(DEFAULT_CONFIG).toMatchObject({
-			nerdFont: false,
 			prefillEnabled: true,
 			prefillViews: ["percent", "tokens", "eta", "rate"],
 			prefillProviders: ["llama.cpp"],

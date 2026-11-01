@@ -9,7 +9,8 @@ import { type AtelierConfig, type AtelierState, type FooterState } from "../src/
 
 const stripAnsi = (text: string) => text.replace(/\u001b\[[0-9;]*m/g, "");
 
-const NERD_CONFIG: AtelierConfig = { ...DEFAULT_CONFIG, nerdFont: true };
+// Pre-change default, kept so Nerd Font coverage stays explicit.
+const NERD: AtelierConfig = { ...DEFAULT_CONFIG, nerdFont: true };
 
 // Expected shell-prompt glyphs are part of the rendered footer contract.
 const icons = {
@@ -45,16 +46,16 @@ const darkRgb = {
 	red: "\u001b[38;2;255;93;115m",
 };
 
-function plainAt(width: number, config = NERD_CONFIG, renderState = state): string {
+function textAt(width: number, config = NERD, renderState = state): string {
 	return stripAnsi(renderFooterLine(renderState, config, plainTheme, width));
 }
 
-function disappearanceWidths(markers: string[], config = NERD_CONFIG, renderState = state): number[] {
-	const wide = plainAt(180, config, renderState);
+function droppedWidths(markers: string[], config = NERD, renderState = state): number[] {
+	const wide = textAt(180, config, renderState);
 	for (const marker of markers) expect(wide).toContain(marker);
 	const missing = new Map<string, number>();
 	for (let width = 179; width >= 20 && missing.size < markers.length; width -= 1) {
-		const line = plainAt(width, config, renderState);
+		const line = textAt(width, config, renderState);
 		for (const marker of markers) {
 			if (!missing.has(marker) && !line.includes(marker)) missing.set(marker, width);
 		}
@@ -67,12 +68,12 @@ function disappearanceWidths(markers: string[], config = NERD_CONFIG, renderStat
 }
 
 const withVisible = (ids: Parameters<typeof legacySegmentsToLayout>[0], overrides = {}) => ({
-	...NERD_CONFIG,
+	...NERD,
 	...overrides,
 	segmentLayout: legacySegmentsToLayout(ids),
 });
 
-const actualClassicPresetConfig: AtelierConfig = { ...NERD_CONFIG, ...applyDisplayTemplate("classic") };
+const actualClassicPresetConfig: AtelierConfig = { ...NERD, ...applyDisplayTemplate("classic") };
 
 const state: AtelierState = {
 	activity: "ready",
@@ -124,7 +125,7 @@ function createFooter(options: Partial<Parameters<typeof createFooterComponent>[
 	return disposeAfterTest(
 		createFooterComponent({
 			getState: () => state,
-			getConfig: () => NERD_CONFIG,
+			getConfig: () => NERD,
 			requestRender: vi.fn(),
 			onBranchChange: () => vi.fn(),
 			theme: plainTheme,
@@ -139,7 +140,7 @@ describe("footer performance", () => {
 		const line = stripAnsi(renderFooterLine(state, config, plainTheme, 160));
 
 		expect(line).toContain(`${icons.latency} —  ${icons.speed} —`);
-		expect(stripAnsi(renderFooterLine(state, NERD_CONFIG, plainTheme, 160))).not.toContain(icons.latency);
+		expect(stripAnsi(renderFooterLine(state, NERD, plainTheme, 160))).not.toContain(icons.latency);
 	});
 
 	it("renders response performance after a response starts", () => {
@@ -181,8 +182,8 @@ describe("footer performance", () => {
 		it("drops performance as one item when the footer is narrow", () => {
 			const config = withVisible(["activity", "metrics", "performance", "context", "model", "menu"]);
 			const measured = { ...state, performance: { ttftMs: 820, tokensPerSecond: 42.34 } };
-			expect(plainAt(160, config, measured)).toContain(`${icons.latency} 820ms  ${icons.speed} 42.3/s`);
-			const line = plainAt(56, config, measured);
+			expect(textAt(160, config, measured)).toContain(`${icons.latency} 820ms  ${icons.speed} 42.3/s`);
+			const line = textAt(56, config, measured);
 
 			expect(line).not.toContain(icons.latency);
 			expect(line).not.toContain(icons.speed);
@@ -283,12 +284,12 @@ describe("composer header and telemetry", () => {
 	});
 
 	it("returns an empty header rather than clipping essential activity or context", () => {
-		const atBoundary = stripAnsi(renderFooterLine(state, NERD_CONFIG, plainTheme, 17, { surface: "header" }));
+		const atBoundary = stripAnsi(renderFooterLine(state, NERD, plainTheme, 17, { surface: "header" }));
 		expect(atBoundary).toBe(`● READY ${icons.separator} ${icons.context} 27.0%`);
 		for (const width of [16, 12, 1, 0]) {
-			expect(renderFooterLine(state, NERD_CONFIG, plainTheme, width, { surface: "header" })).toBe("");
+			expect(renderFooterLine(state, NERD, plainTheme, width, { surface: "header" })).toBe("");
 		}
-		expect(plainAt(16)).toBe(`● READY  ${icons.context} 27.0%`);
+		expect(textAt(16)).toBe(`● READY  ${icons.context} 27.0%`);
 	});
 
 	it("keeps header animation running when telemetry is rendered afterwards", () => {
@@ -313,8 +314,17 @@ describe("composer header and telemetry", () => {
 });
 
 describe("footer", () => {
+	// A terminal without a Nerd Font draws Private Use Area glyphs as .notdef boxes,
+	// so the shipped default has to stay free of them.
+	it("ships Plain text glyphs in the default configuration", () => {
+		const line = textAt(180, DEFAULT_CONFIG);
+		expect(line).toContain("READY");
+		expect(line).toContain("ctx 27.0%");
+		expect(line).not.toMatch(/[\uE000-\uF8FF]/u);
+	});
+
 	it("renders icon groups in the complete footer at wide widths", () => {
-		const line = stripAnsi(renderFooterLine(state, NERD_CONFIG, plainTheme, 160));
+		const line = stripAnsi(renderFooterLine(state, NERD, plainTheme, 160));
 		expect(line).toContain(
 			`● READY ${icons.separator} ${icons.model} gpt-5.6-sol · ${icons.thinking} medium ${icons.separator} ${icons.git} main*`,
 		);
@@ -332,7 +342,7 @@ describe("footer", () => {
 	});
 
 	it("right-aligns telemetry in the complete footer", () => {
-		const line = stripAnsi(renderFooterLine(state, NERD_CONFIG, plainTheme, 180));
+		const line = stripAnsi(renderFooterLine(state, NERD, plainTheme, 180));
 		expect(line.endsWith("F6")).toBe(true);
 		expect(line.indexOf("● READY")).toBe(0);
 		expect(line).toContain("main*");
@@ -341,7 +351,7 @@ describe("footer", () => {
 	});
 
 	it("dims group dividers and keeps related identity items together", () => {
-		const line = renderFooterLine(state, NERD_CONFIG, namedTheme("dark"), 400);
+		const line = renderFooterLine(state, NERD, namedTheme("dark"), 400);
 		expect(line).toContain(`${darkRgb.dim} ${icons.separator} \u001b[39m`);
 		expect(line).toContain(`${darkRgb.dim} · \u001b[39m`);
 		expect(stripAnsi(line)).toContain(`${icons.model} gpt-5.6-sol · ${icons.thinking} medium`);
@@ -349,7 +359,7 @@ describe("footer", () => {
 
 	it("drops secondary detail before workspace identity and required context", () => {
 		const [menuGone, thinkingGone, costGone, inputGone, outputGone, cacheGone, gitGone, modelGone] =
-			disappearanceWidths([
+			droppedWidths([
 				"F6",
 				"medium",
 				"$5.041",
@@ -370,17 +380,17 @@ describe("footer", () => {
 
 	it("removes configured brand and extension statuses before Git and thinking", () => {
 		const config: AtelierConfig = {
-			...NERD_CONFIG,
+			...NERD,
 			preset: "classic",
-			segmentLayout: NERD_CONFIG.segmentLayout.map((entry) =>
+			segmentLayout: NERD.segmentLayout.map((entry) =>
 				entry.id === "brand" ? { ...entry, visible: true } : { ...entry },
 			),
 		};
 		const configuredState = { ...state, extensionStatuses: ["INDEXING"] };
-		expect(plainAt(180, config, configuredState)).toEqual(expect.stringContaining("ATELIER"));
-		expect(plainAt(180, config, configuredState)).toEqual(expect.stringContaining("INDEXING"));
+		expect(textAt(180, config, configuredState)).toEqual(expect.stringContaining("ATELIER"));
+		expect(textAt(180, config, configuredState)).toEqual(expect.stringContaining("INDEXING"));
 
-		const [brandGone, statusGone, gitGone, thinkingGone] = disappearanceWidths(
+		const [brandGone, statusGone, gitGone, thinkingGone] = droppedWidths(
 			["ATELIER", "INDEXING", "main*", "medium"],
 			config,
 			configuredState,
@@ -389,21 +399,21 @@ describe("footer", () => {
 	});
 
 	it("keeps activity and context after optional information is removed", () => {
-		const line = plainAt(24);
+		const line = textAt(24);
 		expect(line).toContain("● READY");
 		expect(line).toContain(`${icons.context} 27.0%`);
 		expect(visibleWidth(line)).toBeLessThanOrEqual(24);
 	});
 
 	it("uses cache hit for editorial and detailed cache values for classic", () => {
-		expect(plainAt(180, NERD_CONFIG)).toContain(`${icons.cache} 99%`);
-		const classic = plainAt(180, actualClassicPresetConfig);
+		expect(textAt(180, NERD)).toContain(`${icons.cache} 99%`);
+		const classic = textAt(180, actualClassicPresetConfig);
 		expect(classic).toContain("read 5.9M");
 		expect(classic).toContain("hit 98.8%");
 	});
 
 	it("renders the actual classic preset segment set", () => {
-		const classic = plainAt(180, actualClassicPresetConfig, {
+		const classic = textAt(180, actualClassicPresetConfig, {
 			...state,
 			extensionStatuses: ["INDEXING"],
 		});
@@ -423,14 +433,14 @@ describe("footer", () => {
 
 	it("uses fixed dark colors for named custom themes", () => {
 		const fg = vi.fn((_color: string, text: string) => text);
-		const line = renderFooterLine(state, NERD_CONFIG, { name: "nord", fg, bold: (text) => text }, 180);
+		const line = renderFooterLine(state, NERD, { name: "nord", fg, bold: (text) => text }, 180);
 		expect(line).toContain(`${darkRgb.blue}${icons.input}\u001b[39m ${darkRgb.blue}324k\u001b[39m`);
 		expect(line).toContain(`${darkRgb.cyan}${icons.cache}\u001b[39m ${darkRgb.cyan}99%\u001b[39m`);
 		expect(fg).not.toHaveBeenCalled();
 	});
 
 	it("colors dark-theme metric icons and values by category", () => {
-		const line = renderFooterLine(state, NERD_CONFIG, namedTheme("dark"), 400);
+		const line = renderFooterLine(state, NERD, namedTheme("dark"), 400);
 		expect(line).toContain(`${darkRgb.blue}${icons.input}\u001b[39m ${darkRgb.blue}324k\u001b[39m`);
 		expect(line).toContain(`${darkRgb.purple}${icons.output}\u001b[39m ${darkRgb.purple}15k\u001b[39m`);
 		expect(line).toContain(`${darkRgb.cyan}${icons.cache}\u001b[39m ${darkRgb.cyan}99%\u001b[39m`);
@@ -468,10 +478,10 @@ describe("footer", () => {
 	});
 
 	it("uses state-specific activity colors", () => {
-		const ready = renderFooterLine(state, NERD_CONFIG, namedTheme("dark"), 180);
+		const ready = renderFooterLine(state, NERD, namedTheme("dark"), 180);
 		const working = renderFooterLine(
 			{ ...state, activity: "working", workingLabel: "PONDERING" },
-			NERD_CONFIG,
+			NERD,
 			namedTheme("dark"),
 			180,
 		);
@@ -482,13 +492,13 @@ describe("footer", () => {
 	it("overrides context blue at warning and danger thresholds", () => {
 		const warning = renderFooterLine(
 			{ ...state, metrics: { ...state.metrics, contextPercent: 70 } },
-			NERD_CONFIG,
+			NERD,
 			namedTheme("dark"),
 			180,
 		);
 		const danger = renderFooterLine(
 			{ ...state, metrics: { ...state.metrics, contextPercent: 90 } },
-			NERD_CONFIG,
+			NERD,
 			namedTheme("dark"),
 			180,
 		);
@@ -496,7 +506,7 @@ describe("footer", () => {
 		expect(danger).toContain(`${darkRgb.red}90.0%\u001b[39m`);
 		const lightDanger = renderFooterLine(
 			{ ...state, metrics: { ...state.metrics, contextPercent: 90 } },
-			NERD_CONFIG,
+			NERD,
 			namedTheme("light"),
 			180,
 		);
@@ -514,7 +524,7 @@ describe("footer", () => {
 					contextPercent: null,
 				},
 			},
-			NERD_CONFIG,
+			NERD,
 			namedTheme("dark"),
 			400,
 		);
@@ -528,7 +538,7 @@ describe("footer", () => {
 
 	it("does not request warning or error roles for a clean ready state", () => {
 		const fg = vi.fn((_color: string, text: string) => text);
-		renderFooterLine({ ...state, dirty: false }, NERD_CONFIG, { fg, bold: (text) => text }, 180);
+		renderFooterLine({ ...state, dirty: false }, NERD, { fg, bold: (text) => text }, 180);
 		const colors = fg.mock.calls.map(([color]) => color);
 		expect(colors).not.toContain("warning");
 		expect(colors).not.toContain("error");
@@ -536,10 +546,10 @@ describe("footer", () => {
 
 	it("uses the same semantic hierarchy without custom RGB when color is disabled", () => {
 		const fg = vi.fn((_color: string, text: string) => text);
-		const disabled = renderFooterLine(state, NERD_CONFIG, { name: "light", fg, bold: (text) => text }, 180, {
+		const disabled = renderFooterLine(state, NERD, { name: "light", fg, bold: (text) => text }, 180, {
 			colorEnabled: false,
 		});
-		const colored = renderFooterLine(state, NERD_CONFIG, namedTheme("light"), 180);
+		const colored = renderFooterLine(state, NERD, namedTheme("light"), 180);
 		expect(stripAnsi(disabled)).toBe(stripAnsi(colored));
 		expect(disabled).not.toContain("\u001b[38;2;");
 		expect(fg.mock.calls.map(([color]) => color)).toEqual(
@@ -553,15 +563,15 @@ describe("footer", () => {
 			bold: (text: string) => `\u001b[1m${text}\u001b[22m`,
 		};
 		for (const width of [132, 131, 96, 95, 72, 71, 56, 55, 20]) {
-			expect(visibleWidth(renderFooterLine(state, NERD_CONFIG, ansiTheme, width))).toBeLessThanOrEqual(width);
+			expect(visibleWidth(renderFooterLine(state, NERD, ansiTheme, width))).toBeLessThanOrEqual(width);
 		}
 	});
 
 	it("renders identically across selected themes at representative widths", () => {
 		for (const width of [160, 100, 56, 20]) {
-			const dark = renderFooterLine(state, NERD_CONFIG, namedTheme("dark"), width);
+			const dark = renderFooterLine(state, NERD, namedTheme("dark"), width);
 			for (const selectedTheme of ["light", "nord", "solarized"]) {
-				expect(renderFooterLine(state, NERD_CONFIG, namedTheme(selectedTheme), width)).toBe(dark);
+				expect(renderFooterLine(state, NERD, namedTheme(selectedTheme), width)).toBe(dark);
 			}
 			expect(visibleWidth(dark)).toBeLessThanOrEqual(width);
 			expect(stripAnsi(dark)).toContain(width >= 56 ? icons.context : "● READY");
@@ -569,11 +579,13 @@ describe("footer", () => {
 	});
 
 	it.each([160, 100, 80, 56, 40, 12])("never exceeds width %d", (width) => {
-		expect(visibleWidth(renderFooterLine(state, NERD_CONFIG, plainTheme, width))).toBeLessThanOrEqual(width);
+		expect(visibleWidth(renderFooterLine(state, DEFAULT_CONFIG, plainTheme, width))).toBeLessThanOrEqual(
+			width,
+		);
 	});
 
 	it("keeps required activity and context at the supported narrow boundary", () => {
-		const line = renderFooterLine(state, NERD_CONFIG, plainTheme, 56);
+		const line = renderFooterLine(state, NERD, plainTheme, 56);
 		expect(line).toContain("● READY");
 		expect(line).toContain(`${icons.context} 27.0%`);
 	});
@@ -602,7 +614,7 @@ describe("footer", () => {
 	});
 
 	it("honors preset, density, and configured item order", () => {
-		const defaultLine = renderFooterLine(state, NERD_CONFIG, plainTheme, 180);
+		const defaultLine = renderFooterLine(state, NERD, plainTheme, 180);
 		expect(defaultLine).not.toContain("ATELIER");
 		const ornament = renderFooterLine(
 			state,
@@ -618,7 +630,7 @@ describe("footer", () => {
 
 		const compact = renderFooterLine(
 			{ ...state, activity: "working", workingLabel: "PONDERING" },
-			{ ...NERD_CONFIG, density: "compact" },
+			{ ...NERD, density: "compact" },
 			plainTheme,
 			160,
 		);
@@ -652,11 +664,9 @@ describe("footer", () => {
 			},
 		};
 		for (const width of [180, 96, 56, 24, 12]) {
-			expect(visibleWidth(renderFooterLine(extreme, NERD_CONFIG, plainTheme, width))).toBeLessThanOrEqual(
-				width,
-			);
+			expect(visibleWidth(renderFooterLine(extreme, NERD, plainTheme, width))).toBeLessThanOrEqual(width);
 		}
-		const narrow = renderFooterLine(extreme, NERD_CONFIG, plainTheme, 40);
+		const narrow = renderFooterLine(extreme, NERD, plainTheme, 40);
 		expect(narrow).toContain("● READY");
 		expect(narrow).toContain(icons.context);
 	});
@@ -673,7 +683,7 @@ describe("footer", () => {
 				autoCompact: null,
 			},
 		};
-		const unavailableLine = renderFooterLine(unavailableState, NERD_CONFIG, plainTheme, 160);
+		const unavailableLine = renderFooterLine(unavailableState, NERD, plainTheme, 160);
 		for (const marker of [
 			`${icons.input} —`,
 			`${icons.output} —`,
@@ -694,7 +704,7 @@ describe("footer", () => {
 				branch: "feature\nrail",
 				extensionStatuses: ["workflow:\nrunning\t now"],
 			},
-			NERD_CONFIG,
+			NERD,
 			plainTheme,
 			180,
 		);
@@ -705,7 +715,7 @@ describe("footer", () => {
 
 		const oversized = renderFooterLine(
 			{ ...state, extensionStatuses: ["x".repeat(200)] },
-			NERD_CONFIG,
+			NERD,
 			plainTheme,
 			160,
 		);
@@ -717,9 +727,7 @@ describe("footer", () => {
 	it("reserves ellipsis width so animated frames never move the model", () => {
 		const working = { ...state, activity: "working" as const, workingLabel: "CLAUDING" };
 		const lines = ["...", "..", "."].map((dots) =>
-			stripAnsi(
-				renderFooterLine(working, NERD_CONFIG, plainTheme, 160, { colorEnabled: true, workingDots: dots }),
-			),
+			stripAnsi(renderFooterLine(working, NERD, plainTheme, 160, { colorEnabled: true, workingDots: dots })),
 		);
 		const modelColumns = lines.map((line) => line.indexOf("gpt-5.6-sol"));
 		expect(modelColumns[0]).toBeGreaterThan(0);
@@ -754,21 +762,21 @@ describe("footer", () => {
 			activity: "working",
 			workingLabel: "PONDERING",
 		};
-		let config = NERD_CONFIG;
+		let config = NERD;
 		const requestRender = vi.fn();
 		const component = createFooter({ getState: () => current, getConfig: () => config, requestRender });
 
 		expect(component.render(20)[0]).not.toContain("PONDERING");
 		expect(vi.getTimerCount()).toBe(0);
 		config = {
-			...NERD_CONFIG,
-			segmentLayout: NERD_CONFIG.segmentLayout.map((entry) =>
+			...NERD,
+			segmentLayout: NERD.segmentLayout.map((entry) =>
 				entry.id === "activity" ? { ...entry, visible: false } : { ...entry },
 			),
 		};
 		expect(component.render(100)[0]).not.toContain("PONDERING");
 		expect(vi.getTimerCount()).toBe(0);
-		config = NERD_CONFIG;
+		config = NERD;
 		expect(component.render(100)[0]).toContain("PONDERING...");
 		expect(vi.getTimerCount()).toBe(1);
 		vi.advanceTimersByTime(400);
@@ -791,8 +799,8 @@ describe("footer", () => {
 				modelId: "PONDERING",
 			}),
 			getConfig: () => ({
-				...NERD_CONFIG,
-				segmentLayout: NERD_CONFIG.segmentLayout.map((entry) =>
+				...NERD,
+				segmentLayout: NERD.segmentLayout.map((entry) =>
 					entry.id === "activity" ? { ...entry, visible: false } : { ...entry },
 				),
 			}),
@@ -806,7 +814,7 @@ describe("footer", () => {
 		const fg = vi.fn((_color: string, text: string) => text);
 		const bold = vi.fn((text: string) => `<b>${text}</b>`);
 		const working = { ...state, activity: "working" as const, workingLabel: "PONDERING" };
-		const line = renderFooterLine(working, NERD_CONFIG, { name: "nord", fg, bold }, 160, {
+		const line = renderFooterLine(working, NERD, { name: "nord", fg, bold }, 160, {
 			colorEnabled: true,
 			workingDots: "..",
 		});
@@ -819,16 +827,14 @@ describe("footer", () => {
 		["ready", "READY"],
 		["working", "WORKING"],
 	] as const)("renders %s with the expected fallback label", (activity, expected) => {
-		const line = renderFooterLine({ ...state, activity }, NERD_CONFIG, plainTheme, 160);
+		const line = renderFooterLine({ ...state, activity }, NERD, plainTheme, 160);
 		expect(line).toContain(activity === "working" ? `${expected}...` : expected);
 	});
 
 	it("keeps the longest working phrase within responsive width limits", () => {
 		const working = { ...state, activity: "working" as const, workingLabel: "PHOTOSYNTHESIZING" };
 		for (const width of [132, 131, 96, 95, 72, 71, 56, 55, 20]) {
-			expect(visibleWidth(renderFooterLine(working, NERD_CONFIG, plainTheme, width))).toBeLessThanOrEqual(
-				width,
-			);
+			expect(visibleWidth(renderFooterLine(working, NERD, plainTheme, width))).toBeLessThanOrEqual(width);
 		}
 	});
 
