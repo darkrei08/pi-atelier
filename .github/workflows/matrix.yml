@@ -1,0 +1,81 @@
+name: matrix
+
+on:
+  push:
+    branches: [ci/matrix]
+  workflow_dispatch:
+
+jobs:
+  host:
+    name: host (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      # GitHub checks out with core.autocrlf=true on Windows, which rewrites every
+      # file to CRLF and makes `biome format` fail on 73 files. The repo has no
+      # .gitattributes, so the job normalises the checkout instead.
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npm run check
+
+  distro:
+    name: distro (${{ matrix.family }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - family: debian-13
+            image: debian:13
+          - family: ubuntu-24.04
+            image: ubuntu:24.04
+          - family: fedora
+            image: fedora:latest
+          - family: rocky-9
+            image: rockylinux:9
+          - family: alma-9
+            image: almalinux:9
+          - family: arch
+            image: archlinux:latest
+          - family: opensuse-tumbleweed
+            image: opensuse/tumbleweed:latest
+          - family: alpine
+            image: alpine:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ${{ matrix.family }}
+        env:
+          IMAGE: ${{ matrix.image }}
+          NODE_VERSION: v22.23.3
+        run: |
+          set -eu
+          docker run --rm -e NODE_VERSION -v "$GITHUB_WORKSPACE:/src:ro" -w /tmp "$IMAGE" sh -ceu '
+            . /etc/os-release
+            case "${ID} ${ID_LIKE:-}" in
+              *alpine*) apk add --no-cache nodejs npm git curl xz bash >/dev/null ;;
+              *arch*) pacman -Sy --noconfirm --needed nodejs npm git curl xz >/dev/null ;;
+              *fedora*|*rhel*|*centos*) dnf install -y -q git xz tar >/dev/null
+                curl -fsSL "https://nodejs.org/dist/$NODE_VERSION/node-$NODE_VERSION-linux-x64.tar.xz" | tar -xJ -C /usr/local --strip-components=1 ;;
+              *suse*) zypper -q -n install git curl xz tar >/dev/null
+                curl -fsSL "https://nodejs.org/dist/$NODE_VERSION/node-$NODE_VERSION-linux-x64.tar.xz" | tar -xJ -C /usr/local --strip-components=1 ;;
+              *debian*|*ubuntu*) apt-get update -qq >/dev/null
+                DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git curl xz-utils ca-certificates >/dev/null
+                curl -fsSL "https://nodejs.org/dist/$NODE_VERSION/node-$NODE_VERSION-linux-x64.tar.xz" | tar -xJ -C /usr/local --strip-components=1 ;;
+              *) echo "unmapped distribution: ${ID} / ${ID_LIKE:-}" >&2; exit 2 ;;
+            esac
+            git config --global --add safe.directory '*'
+            echo "distro=${PRETTY_NAME}"
+            node -v
+            npm -v
+            cp -a /src /tmp/w
+            cd /tmp/w
+            npm ci --no-audit --no-fund
+            npm run check
+          '
