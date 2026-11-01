@@ -58,6 +58,7 @@ jobs:
           set -eu
           docker run --rm -e NODE_VERSION -v "$GITHUB_WORKSPACE:/src:ro" -w /tmp "$IMAGE" sh -ceu '
             . /etc/os-release
+            git config --global --add safe.directory '*'
             case "${ID} ${ID_LIKE:-}" in
               *alpine*) apk add --no-cache nodejs npm git curl xz bash >/dev/null ;;
               *arch*) pacman -Sy --noconfirm --needed nodejs npm git curl xz >/dev/null ;;
