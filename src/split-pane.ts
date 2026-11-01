@@ -13,8 +13,7 @@ import {
 	type ImageCompositorBinding,
 } from "./image-compositor.js";
 import { clamp } from "./text.js";
-import type { CompatMouseEvent } from "./pi-compat.js";
-import { overlayHandleBounds, type MouseRegionComponent } from "./pi-compat.js";
+import { attachCompatMouseHandler, compatMouseHandler, overlayHandleBounds } from "./pi-compat.js";
 import type { RailBarComponent } from "./rail-bar.js";
 
 const ENABLE_MOUSE = "\u001b[?1002h\u001b[?1006h";
@@ -247,7 +246,7 @@ export function createSplitPaneController(options: SplitPaneControllerOptions = 
 		]);
 
 	const createFullscreenTopRoot = (originalRoot: Component, lines: number): Component => {
-		const bar: MouseRegionComponent = {
+		const bar: Component = {
 			render(width) {
 				if (!topBar || !tui) return [];
 				const rows = tui.terminal.rows;
@@ -256,13 +255,12 @@ export function createSplitPaneController(options: SplitPaneControllerOptions = 
 				if (nextLines.length !== lines) syncFullscreenLayoutAdapter();
 				return nextLines;
 			},
-			handleMouse(event: CompatMouseEvent) {
-				return topBar?.handleMouse?.(event);
-			},
 			invalidate() {
 				topBar?.invalidate?.();
 			},
 		};
+		const handleMouse = topBar ? compatMouseHandler(topBar) : undefined;
+		if (handleMouse) attachCompatMouseHandler(bar, (event) => handleMouse.call(topBar, event));
 		return new VStack([
 			{ component: bar, basis: lines, grow: 0, shrink: 0, minSize: lines },
 			{ component: originalRoot, basis: "auto", grow: 1, shrink: 1 },

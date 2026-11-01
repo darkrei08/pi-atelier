@@ -5,7 +5,7 @@ import { EMPTY_RUN_ACTIVITY } from "../src/run-activity.js";
 import { buildSidebarSnapshot } from "../src/sidebar.js";
 import { createInertAtelierState } from "../src/state.js";
 import { createRailBar, hitTestRail, railBarLines } from "../src/rail-bar.js";
-import type { CompatMouseEvent, MouseRegionComponent } from "../src/pi-compat.js";
+import { compatMouseHandler, type CompatMouseEvent, type MouseRegionComponent } from "../src/pi-compat.js";
 import type { ThemeLike } from "../src/palette.js";
 
 const theme: ThemeLike = { fg: (_role, text) => text, bold: (text) => text };
@@ -166,9 +166,9 @@ describe("top card strip", () => {
 		const bar = createRailBar(() => ["▾ AGENT model"], onSectionClick, {});
 		bar.render(120);
 		expect(bar.render(120)).toEqual(["▾ AGENT model"]);
-		const mouseBar = bar as MouseRegionComponent;
-		mouseBar.handleMouse?.({ type: "click", button: "left", x: 2, y: 0 });
-		expect(mouseBar.handleMouse).toBeUndefined();
+		const handleMouse = compatMouseHandler(bar as MouseRegionComponent);
+		handleMouse?.({ type: "click", button: "left", x: 2, y: 0 });
+		expect(handleMouse).toBeUndefined();
 		expect(onSectionClick).not.toHaveBeenCalled();
 	});
 
@@ -185,9 +185,7 @@ describe("top card strip", () => {
 			invalidate() {
 				this.child.invalidate();
 			}
-			handleMouse(event: CompatMouseEvent) {
-				return this.handle(event);
-			}
+			handleMouse = (event: never): never => this.handle(event) as never;
 		}
 		const bar = createRailBar(() => ["▾ AGENT model"], onSectionClick, { MouseRegion: FakeMouseRegion });
 		bar.render(120);
@@ -204,11 +202,11 @@ describe("top card strip", () => {
 			alt: false,
 			ctrl: false,
 		});
-		const mouseBar = bar as MouseRegionComponent;
-		mouseBar.handleMouse?.(event("press"));
-		mouseBar.handleMouse?.(event("release"));
+		const handleMouse = compatMouseHandler(bar as MouseRegionComponent);
+		handleMouse?.(event("press"));
+		handleMouse?.(event("release"));
 		expect(onSectionClick).not.toHaveBeenCalled();
-		mouseBar.handleMouse?.(event("click"));
+		handleMouse?.(event("click"));
 		expect(onSectionClick).toHaveBeenCalledOnce();
 	});
 });

@@ -1,6 +1,11 @@
 import * as PiTui from "@earendil-works/pi-tui";
 import type { Component } from "@earendil-works/pi-tui";
-import { createMouseRegionComponent, type CompatMouseEvent } from "./pi-compat.js";
+import {
+	attachCompatMouseHandler,
+	compatMouseHandler,
+	createMouseRegionComponent,
+	type CompatMouseEvent,
+} from "./pi-compat.js";
 import { visibleWidth } from "@earendil-works/pi-tui";
 import { renderHeaderRail } from "./header-rail.js";
 import { PANEL_KEYS, panelIdForTitle, t } from "./i18n.js";
@@ -54,7 +59,7 @@ export function hitTestRail(
 
 export type RailBarComponent = Component & {
 	setRows(rows: number): void;
-} & Partial<{ handleMouse(event: CompatMouseEvent): unknown }>;
+};
 
 export function createRailBar(
 	render: (width: number, rows: number) => string[],
@@ -77,11 +82,10 @@ export function createRailBar(
 		if (event.type === "click") onSectionClick?.(id);
 		return { handled: true };
 	});
-	return {
+	const component: RailBarComponent = {
 		render(width) {
 			return region.render(width);
 		},
-		...(region.handleMouse ? { handleMouse: (event: CompatMouseEvent) => region.handleMouse?.(event) } : {}),
 		setRows(nextRows) {
 			rows = nextRows;
 		},
@@ -89,4 +93,8 @@ export function createRailBar(
 			region.invalidate();
 		},
 	};
+	const handleMouse = compatMouseHandler(region);
+	return handleMouse
+		? (attachCompatMouseHandler(component, (event) => handleMouse.call(region, event)) as RailBarComponent)
+		: component;
 }

@@ -8,9 +8,20 @@ export interface CompatMouseEvent {
 	y: number;
 }
 
-export type MouseRegionComponent = Component & {
-	handleMouse?(event: CompatMouseEvent): unknown;
-};
+export type MouseRegionComponent = Component;
+
+type CompatMouseHandler = (event: CompatMouseEvent) => unknown;
+type CompatMouseSurface = { handleMouse?: CompatMouseHandler };
+
+export function compatMouseHandler(component: Component): CompatMouseHandler | undefined {
+	return (component as Component & CompatMouseSurface).handleMouse;
+}
+
+export function attachCompatMouseHandler(component: Component, handler: CompatMouseHandler): Component {
+	// Pi 0.84 lacks handleMouse; newer Component types require a different event/result signature.
+	(component as unknown as CompatMouseSurface).handleMouse = handler;
+	return component;
+}
 
 type MouseRegionConstructor = new (
 	component: Component,

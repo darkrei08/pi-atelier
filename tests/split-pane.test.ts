@@ -11,7 +11,7 @@ import {
 	parseSgrMouseEvent,
 } from "../src/split-pane.js";
 import { stableTuiReference } from "./helpers/stable-tui-reference.js";
-import type { CompatMouseEvent, MouseRegionComponent } from "../src/pi-compat.js";
+import { compatMouseHandler, type CompatMouseEvent, type MouseRegionComponent } from "../src/pi-compat.js";
 import { createRailBar } from "../src/rail-bar.js";
 
 function harness(columns = 120) {
@@ -527,9 +527,7 @@ describe("Pi 0.84 split layout", () => {
 			invalidate() {
 				this.child.invalidate();
 			}
-			handleMouse(event: CompatMouseEvent) {
-				return this.handle(event);
-			}
+			handleMouse = (event: never): never => this.handle(event) as never;
 		}
 		const bar = createRailBar(() => ["▾ AGENT model"], toggle, { MouseRegion: FakeMouseRegion });
 		const split = disposeAfterTest(createSplitPaneController({ topBar: bar }));
@@ -550,10 +548,10 @@ describe("Pi 0.84 split layout", () => {
 			alt: false,
 			ctrl: false,
 		});
-		const mouseBar = bar as MouseRegionComponent;
-		mouseBar.handleMouse?.(event("press"));
-		mouseBar.handleMouse?.(event("release"));
-		mouseBar.handleMouse?.(event("click"));
+		const handleMouse = compatMouseHandler(bar as MouseRegionComponent);
+		handleMouse?.(event("press"));
+		handleMouse?.(event("release"));
+		handleMouse?.(event("click"));
 
 		expect(toggle).toHaveBeenCalledOnce();
 		expect(toggle).toHaveBeenCalledWith("agent");
