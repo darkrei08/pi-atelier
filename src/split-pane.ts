@@ -436,6 +436,7 @@ export function createSplitPaneController(options: SplitPaneControllerOptions = 
 						}
 					},
 					isHidden: () => handle.isHidden(),
+					getBounds: () => handle.getBounds(),
 					focus: () => handle.focus(),
 					unfocus: (options) => handle.unfocus(options),
 					isFocused: () => handle.isFocused(),
