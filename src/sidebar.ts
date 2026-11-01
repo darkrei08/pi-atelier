@@ -9,6 +9,7 @@ import { hasCapturingOverlay } from "./image-compositor.js";
 import { formatTokens } from "./metrics.js";
 import { t } from "./i18n.js";
 import { asciiGlyphText, surfaceGlyphs } from "./glyphs.js";
+import { todoWindow, todoWindowSummary } from "./todo-window.js";
 import { renderPanelCard } from "./panel-card.js";
 import { type AtelierPalette, createPalette, type PaletteRole, type ThemeLike } from "./palette.js";
 import {
@@ -420,16 +421,11 @@ function todosRows(
 	const done = todos.filter((todo) => todo.status === "completed").length;
 	const available =
 		snapshot.runActivity.phase === "running" ? todos.filter((todo) => todo.status === "in_progress") : todos;
-	const start = Math.min(offset, Math.max(0, available.length - 1));
-	const visible = available.slice(start, start + 6);
-	const position = `${start + 1}/${available.length}`;
-	const summary =
-		todos.length > 6
-			? `${done}/${todos.length} · ${start > 0 ? "↑ " : ""}${position}${start + visible.length < available.length ? " ↓" : ""}`
-			: `${done}/${todos.length}`;
+	const window = todoWindow(available, offset);
+	const summary = todoWindowSummary(done, todos.length, window);
 	return [
 		palette.paint("muted", summary),
-		...visible.map((todo) => {
+		...window.items.map((todo) => {
 			const check = TODO_CHECK[todo.status];
 			const glyph =
 				todo.status === "completed"

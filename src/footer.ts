@@ -5,6 +5,7 @@ import { t } from "./i18n.js";
 import { surfaceGlyphs } from "./glyphs.js";
 import { type AtelierPalette, createPalette, type PaletteRole, type ThemeLike } from "./palette.js";
 import { responsePerformanceValues } from "./run-activity.js";
+import { footerCoreSelection } from "./surface-gates.js";
 import { RAIL_BAR_MIN_ROWS, RAIL_BAR_MIN_WIDTH } from "./rail-bar.js";
 import { PLACEHOLDER, sanitizeInline } from "./text.js";
 import type {
@@ -453,9 +454,10 @@ function renderFooter(
 	const symbols = config.nerdFont ? FOOTER_ICONS : PLAIN_SYMBOLS;
 	const glyphs = surfaceGlyphs("footer", config.nerdFont);
 	const itemContext = { state, config, theme, palette, symbols, workingDots, glyphs };
-	const coreOnly = terminalWidth < 76 || rows < 20;
-	const items = coreOnly
-		? [SEGMENT_ITEMS.activity(itemContext)[0]!, SEGMENT_ITEMS.context(itemContext)[0]!]
+	const coreSelection = footerCoreSelection(terminalWidth, rows);
+	const coreOnly = coreSelection !== undefined;
+	const items = coreSelection
+		? coreSelection.map((id) => SEGMENT_ITEMS[id](itemContext)[0]!)
 		: buildItems(itemContext, width, rows);
 	const workingActivity =
 		state.activity === "working" && config.density !== "compact"

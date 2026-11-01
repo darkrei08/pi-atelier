@@ -3,6 +3,7 @@ import { asciiGlyphText } from "./glyphs.js";
 import { PANEL_KEYS, panelIdForTitle, t } from "./i18n.js";
 import { createPalette, type PaletteRole, type ThemeLike } from "./palette.js";
 import { FOOTER_OWNED_SECTIONS, SECTION_ROLES } from "./header-rail.js";
+import { hasTopStripSurface } from "./surface-gates.js";
 import { renderPanelCard } from "./panel-card.js";
 import {
 	isSectionExpanded,
@@ -31,7 +32,7 @@ export function railStripLines(
 	expansion: SectionExpansion,
 ): string[] {
 	const safeWidth = Math.max(0, Math.trunc(width));
-	if (safeWidth < 64 || rows < 20) return [];
+	if (!hasTopStripSurface(safeWidth, rows)) return [];
 	const height = Math.max(3, Math.min(config.railTopHeight, rows - 16));
 	const sections = config.sidebarPanelLayout.flatMap(({ id, visible }) => {
 		if (!visible || !isBuiltinSidebarPanelId(id) || FOOTER_OWNED_SECTIONS.has(id)) return [];

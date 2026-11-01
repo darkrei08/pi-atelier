@@ -51,6 +51,7 @@ import { emptySubagentUsage } from "../src/subagent-usage.js";
 import { openSubagentUsage } from "../src/subagent-usage-view.js";
 import { errorMessage, isColorEnabled, isRecord } from "../src/text.js";
 import { reconstructTodos, todosFromDetails } from "../src/todos.js";
+import { clampTodoOffset, scrollTodoOffset, todoActionFromArgs } from "../src/todo-window.js";
 import type { AtelierConfig, AtelierState, FooterState, NormalizedTodo } from "../src/types.js";
 
 // Public sidebar contribution protocol for other extensions.
@@ -697,23 +698,11 @@ export default function atelierExtension(
 		current.runActivity.getSnapshot().phase === "running"
 			? current.todos.filter((todo) => todo.status === "in_progress").length
 			: current.todos.length;
-	const clampTodoOffset = (current: ActiveSession): void => {
-		current.todoOffset = Math.min(current.todoOffset, Math.max(0, visibleTodoCount(current) - 1));
-	};
-	const scrollTodos = (current: ActiveSession, action: string): void => {
-		clampTodoOffset(current);
-		const maxOffset = Math.max(0, visibleTodoCount(current) - 1);
-		const step =
-			action === "next"
-				? 1
-				: action === "prev"
-					? -1
-					: action === "page-down"
-						? 6
-						: action === "page-up"
-							? -6
-							: 0;
-		current.todoOffset = action === "top" ? 0 : Math.max(0, Math.min(maxOffset, current.todoOffset + step));
+	const scrollTodos = (
+		current: ActiveSession,
+		action: "top" | "next" | "prev" | "page-up" | "page-down",
+	): void => {
+		current.todoOffset = scrollTodoOffset(current.todoOffset, visibleTodoCount(current), action);
 		current.sidebar.requestRender();
 	};
 	const commands = new Map<string, CommandHandler>(
@@ -732,17 +721,15 @@ export default function atelierExtension(
 				}
 				toggleRailSection(ctx, id);
 			},
-			todos: (ctx, [action, ...extra]) => {
+			todos: (ctx, args) => {
 				const current = requireActiveSession(ctx);
 				if (!current) return;
-				if (
-					extra.length > 0 ||
-					(action !== undefined && !["top", "next", "prev", "page-up", "page-down"].includes(action))
-				) {
+				const action = todoActionFromArgs(args);
+				if (action === null) {
 					usage(ctx, "todos [top|next|prev|page-up|page-down]");
 					return;
 				}
-				scrollTodos(current, action ?? "top");
+				scrollTodos(current, action);
 				ctx.ui.notify(
 					`${t(current.runtime.getConfig().language, "todosLabel")} ${current.todos.length === 0 ? 0 : current.todoOffset + 1}/${current.todos.length}`,
 					"info",
@@ -964,12 +951,14 @@ export default function atelierExtension(
 					!current.runtime.getConfig().sidebarPanelLayout.some(({ id, visible }) => id === "todos" && visible)
 				)
 					return false;
-				const action = [
-					["ctrl+p", "prev"],
-					["ctrl+n", "next"],
-					["ctrl+u", "page-up"],
-					["ctrl+d", "page-down"],
-				].find(([key]) => matchesKey(data, key! as KeyId))?.[1];
+				const action = (
+					[
+						["ctrl+p", "prev"],
+						["ctrl+n", "next"],
+						["ctrl+u", "page-up"],
+						["ctrl+d", "page-down"],
+					] as const
+				).find(([key]) => matchesKey(data, key as KeyId))?.[1];
 				if (!action) return false;
 				scrollTodos(current, action);
 				return true;
@@ -1099,7 +1088,7 @@ export default function atelierExtension(
 		const current = getActiveSession(ctx);
 		if (!enabled || !current) return;
 		current.todos = reconstructTodos(ctx);
-		clampTodoOffset(current);
+		current.todoOffset = clampTodoOffset(current.todoOffset, visibleTodoCount(current));
 		void current.runtime.refreshSubagentUsage();
 		requestAllRenders(current);
 	});
@@ -1190,7 +1179,7 @@ export default function atelierExtension(
 		if (!todos) return;
 		// Leave the result content untouched: it is what the model reads, including task ids.
 		current.todos = todos;
-		clampTodoOffset(current);
+		current.todoOffset = clampTodoOffset(current.todoOffset, visibleTodoCount(current));
 		current.sidebar.requestRender();
 	});
 	pi.on("agent_settled", (_event, ctx) => {
