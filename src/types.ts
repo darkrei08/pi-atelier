@@ -90,6 +90,7 @@ export interface AtelierConfig extends DisplaySettings {
 	sectionExpansion: Partial<Record<BuiltinSidebarPanelId, boolean>>;
 	nerdFont: boolean;
 	shortcut: string;
+	resizeShortcut: string;
 	/** Optional key that toggles the sidebar directly; empty means no binding. */
 	toggleShortcut: string;
 	contextWarning: number;
